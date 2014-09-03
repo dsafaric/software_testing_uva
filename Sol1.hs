@@ -8,4 +8,4 @@ calculations x = (x + x) * x - (x / x)
 -- Can not find a actual question..
 
 -- Exercise 1.4
-
+work n = n
