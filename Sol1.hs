@@ -8,4 +8,6 @@ calculations x = (x + x) * x - (x / x)
 -- Can not find a actual question..
 
 -- Exercise 1.4
-work n = n
+countToN n = countoToNsub 0 n []
+    where
+        counToSub 0 n xs = xs
