@@ -43,4 +43,34 @@ reverse'' xs = foldl (flip (:)) [] xs
 -- Resource: stackoverflow/questions/7396978/left-and-right-folding-over-an-infinite-list
 
 -- Exercise 4  
+-- Will give the answer (Tiger, Lady)
+sign3, sign4 :: (Creature, Creature) -> Bool
+sign3 (x,y) = any (==Lady) [x,y]
+sign4 (x,y) = x == Tiger && y == Lady
 
+solution2 :: [(Creature,Creature)]
+solution2 = 
+ [ (x,y) | x <- [Lady,Tiger], 
+           y <- [Lady,Tiger], 
+           sign3 (x,y) == sign4 (x,y), x /= y]
+           
+--Exercise 5
+-- Will give the answer (Knave, Knight)
+john2 :: (Islander, Islander) -> Bool
+john2 (x,y) = x == y
+bill (x,y) = x /= y
+
+solution4 :: [(Islander,Islander)]
+solution4 = [(x,y) | x <- [Knight, Knave], 
+                     y <- [Knight, Knave], 
+                     john(x,y) /= bill(x,y), -- They can not both be right since they are contradicting
+                     if john(x,y) then x == Knight else x == Knave ] -- Only if john is right is he a knight
+                     
+-- Exercise 7
+--solution :: [Boy]
+subsolution x | length (filter x boys) == 3 = True
+              | otherwise = False
+solution = zip boys $ map subsolution declarations
+giveName (x,y) | x == True = [y]
+               | otherwise = []
+honest x = filter x boys
