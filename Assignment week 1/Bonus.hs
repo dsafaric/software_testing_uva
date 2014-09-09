@@ -7,8 +7,8 @@ import Lab1Bonus
 length' :: [a] -> Int
 length' xs = foldr (\x -> (+1)) 0 xs
 
---elem' :: a -> [a] -> Bool
---elem' x xs = foldr (\e -> e == x False xs
+elem' :: Eq a => a -> [a] -> Bool
+elem' x xs = foldr (\e -> (||) (e ==x)) False xs
 
 or' :: [Bool] -> Bool
 or' xs = foldr (||) False xs
@@ -56,21 +56,46 @@ solution2 =
            
 --Exercise 5
 -- Will give the answer (Knave, Knight)
-john2 :: (Islander, Islander) -> Bool
+john2, bill :: (Islander, Islander) -> Bool
 john2 (x,y) = x == y
 bill (x,y) = x /= y
 
 solution4 :: [(Islander,Islander)]
 solution4 = [(x,y) | x <- [Knight, Knave], 
                      y <- [Knight, Knave], 
-                     john(x,y) /= bill(x,y), -- They can not both be right since they are contradicting
-                     if john(x,y) then x == Knight else x == Knave ] -- Only if john is right is he a knight
+                     if john(x,y) then x == Knight else x == Knave, -- Only if john is right is he a knight
+                     if bill(x,y) then y == Knight else y == Knave] -- The same for bill
+
+-- Exercise 6
+-- Our own puzzle: John says that bill is a knave and bill says that neither are knaves
+-- Will give the answer (Knave, Knight)
+john3, bill2 :: (Islander, Islander) -> Bool
+john3 (x,y) = y == Knave
+bill2 (x,y) = x /= Knave && y /= Knave
+
+solution5 :: [(Islander,Islander)]
+solution5 = [(x,y) | x <- [Knight, Knave], 
+                     y <- [Knight, Knave], 
+                     if john3(x,y) then x == Knight else x == Knave, -- Only if john is right is he a knight
+                     if bill2(x,y) then y == Knight else y == Knave] -- The same for bill
                      
 -- Exercise 7
---solution :: [Boy]
-subsolution x | length (filter x boys) == 3 = True
-              | otherwise = False
-solution = zip boys $ map subsolution declarations
-giveName (x,y) | x == True = [y]
-               | otherwise = []
-honest x = filter x boys
+-- guilty gives the list of possible guilty boys according to the given boy
+guilty :: (Boy -> Bool) -> [Boy]
+guilty x = filter x boys
+
+-- guiltyAccordingEach tells us for each boy who is a possible guilty one according to that boy
+guiltyAccordingEach :: [[Boy]]
+guiltyAccordingEach = map guilty declarations 
+
+-- check will check for the given Boy if it is in the list of guilty ones
+check :: Boy -> [Bool]
+check x = map (\xs -> any (==x) xs) guiltyAccordingEach
+
+-- blame will get the length for the boy for how many times it is in a list of guilty ones
+blame :: Boy -> Int
+blame x = length $ filter (== True) (check x)
+
+-- Since three boys are telling the truth, the same name of a possible guilty boy should be in at least three lists for it to be true
+solution :: [Boy]
+solution = map (\(x,y) -> y) $ filter (\(x,y) -> x==3) $ zip (map blame boys) boys
