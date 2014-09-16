@@ -79,19 +79,20 @@ testProp2 (x:xs) ys = elem x ys && testProp2 xs ys
 testProp3 :: Ord a => [a] -> [a] -> Bool
 testProp3 xs ys = sort xs == sort ys
 
--- Two list which are permutations of each other should have the same sum when the elements are added to each other
+-- Two list which are permutations of each other should have the same sum when the elements are added to each other (in the case of a list of Num)
 testProp4 :: (Num a, Eq a) => [a] -> [a] -> Bool
 testProp4 xs ys = sum xs == sum ys
 
 ---- Exercise 4 ----
--- Sub-function inBetween to put an element between all other elements in a list and return all new possible lists
--- Use this sub-function to insert the top of the current list in all permutations of the rest of the list
+-- Sub-function inBetween to put an element between all other elements in a list and return all new possible lists.
+-- E.g. for 1 [2,3] it will return [1,2,3], [2,1,3] and [2,3,1]
+-- Use this sub-function to insert the top of the current list in all permutations of the rest of the list and do this also for the remainder of the list
 perms :: Eq a => [a] -> [[a]]
 perms [ ] = [[]]
 perms (x : xs) = concat (map (inBetween x) (perms xs))
     where
         inBetween e [ ] = [[e]]                                             
-        inBetween e (y : ys) = (e : y : ys) : map (y:) (inBetween e ys)
+        inBetween e (y:ys) = (e:y:ys) :[ y:res | res <- inBetween e ys]
 
 ---- Exercise 5 ----
 -- Check if two lists are permutations of each other and for each element at index i if it is not the same as the other list at index i
