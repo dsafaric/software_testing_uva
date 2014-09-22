@@ -15,7 +15,7 @@ none _ [] = True
 none f (x:xs) = not (f x) && none f xs
 
 -- Check if none of the evaluated form returns True
--- We used none instead of not . satisfiable since we can now use not . satisfiable as a testing proeprty
+-- We used none instead of not . satisfiable since we can now use not . satisfiable as a testing property
 contradiction :: Form -> Bool
 contradiction f = none (\ v -> eval v f) (allVals f)
 
@@ -23,7 +23,7 @@ contradiction f = none (\ v -> eval v f) (allVals f)
 tautology :: Form -> Bool
 tautology f = all (\ v -> eval v f) (allVals f)
 
--- Logical equivalent means that when f1 is true, f2 should be true as well, thus having f1 imply f2
+-- Logical equivalent means that when f1 is true, f2 should be true as well, thus having f1 imply f2 for all evaluations of f1 and f2
 entails :: Form -> Form -> Bool
 entails f1 f2 = tautology (Impl f1 f2)
 
@@ -32,13 +32,17 @@ equiv :: Form -> Form -> Bool
 equiv f1 f2 = tautology (Equiv f1 f2)
 
 --- Tests of formulas above
--- If a formula is a tautology it is not a contradiction and vice versa
 -- If a formula is a contradiction is not satisfiable and vice versa
 -- A formula should be a contradiction, tautology or satisfiable
 testValidity :: Form -> Bool
-testValidity f  | tautology f = not (contradiction f) && satisfiable f
+testValidity f  -- If a formula is a tautology it is not a contradiction and vice versa
+                | tautology f = not (contradiction f) && satisfiable f
                 | contradiction f = not (tautology f) && not (satisfiable f)
+                
+                -- Satisfiable means no contradiction
                 | satisfiable f = not (contradiction f)
+                
+                -- It should always be one of the above cases
                 | otherwise = False
  
 -- If two formulas are equivalent they should imply each other
@@ -47,9 +51,6 @@ testValidity f  | tautology f = not (contradiction f) && satisfiable f
 testEquiv :: Form -> Form -> Bool 
 testEquiv f1 f2| equiv f1 f2 = entails f1 f2 && entails f2 f1
                | otherwise = True
-               
---testEntails :: Form -> Form -> Bool
---testEntails f1 f2 | entails f1 f2 = (\ v -> eval v f) (allVals f1)
 
 ---- Exercise 2 ----
 cnf :: Form -> Form
@@ -61,12 +62,11 @@ cnf form = f $ (nnf . arrowfree) form -- Use function f on nnf of form
         f (Cnj fs) = Cnj (map f fs)
         f (Dsj fs) = dist (map f fs)
 
-        -- sub function dist which expects a list of forms and does the DIST algorithm
-        -- from the lecture on each of the elements
+        -- sub function dist which expects a list of forms and does the DIST algorithm from the lecture on each of the elements
         dist [] = Dsj []
         dist (x:xs) = foldr subDist x xs
 
-        -- the DIST algorithm from the lecture, only make it useful for conjunctions as list instead of a pair
+        -- the DIST algorithm from the lecture, only it is made useful for conjunctions as a list instead of a pair
         subDist (Cnj f) p = Cnj (map (\x -> subDist x p) f)    
         subDist f (Cnj p) = Cnj (map (\x -> subDist f x) p)
         subDist f1 f2 = Dsj [f1, f2]
@@ -78,11 +78,10 @@ allProps, propEquiv, propArrowFree, propNNF, propCNF :: Form -> Bool
 -- A CNF of a formula should be logically equivalent to its original formula
 propEquiv f = equiv (cnf f) f
 
--- A CNF of a formula should be logically equivalent to the arrow free formula
+-- A formula should be logically equivalent to the arrow free formula
 propArrowFree f = equiv (arrowfree f) f
 
--- A CNF of a formula should be logically equivalent to the nnf formula
--- With the pre condition that f should already be in arrowfree form
+-- A CNF of a formula should be logically equivalent to the NNF formula, with the pre condition that f should already be in arrowfree form
 propNNF f = let a = arrowfree f 
             in equiv (nnf a) f 
 
@@ -96,24 +95,74 @@ allProps f = propEquiv f &&
              propCNF f
 
 --- Random test generator
--- testGenerator will generate 50 random formulas and check for each of them
+-- testGenerator will generate 100 random formulas and check for each of them
 -- if the testProperties
 testGenerator :: IO()
 testGenerator = do
-                formulas <- (getRandomFs 50)
-                test 70 allProps formulas
+                formulas <- (getRandomFs 100)
+                test 100 allProps formulas
                 
 ---- Exercise 4 ----
 type Clause = [Int]
 type Clauses = [Clause]
 
+-- Seems to give the right result, though with some propositions in the wrong order. This however makes logically no difference since
+-- order does not matter in 
 cnf2cls :: Form -> Clauses
-cnf2cls (Cnj f) = undefined
-cnf2cls (Dsj f) = [concatDisjuncts f]
-cnf2cls (Neg p) = map (map (*(-1))) (cnf2cls p)
-cnf2cls (Prop p) = [[p]]
+cnf2cls form = cnf2cls' form 
+    where
+        -- Each conjunction is a clause over which the cnf2cls' should be executed, the results can be concatenated so all conjunctions are
+        -- at the same level (instead of nested, which makes no difference logically seen)
+        cnf2cls' (Cnj f) = concat $ map cnf2cls' f
+        
+        -- Apply sub function to all disjunctions to create a clause
+        cnf2cls' (Dsj f) = [concatDisjuncts f]
+        
+        -- Negate every every proposition letter in the cls (no swapping of conjuncts and disjuncts since negations only negate one proposition each
+        cnf2cls' (Neg p) = map (map (*(-1))) (cnf2cls' p)
+        
+        -- One clause
+        cnf2cls' (Prop p) = [[p]]
+        
+        -- Sub function that creates one clause for each disjunct given. Disjunctions are nested  in the CNF which makes logically no 
+        -- difference and therefore are put at the same level to create one clause.
+        concatDisjuncts :: [Form] -> Clause
+        concatDisjuncts [] = []
+        concatDisjuncts (Dsj x:xs) = concatDisjuncts x ++ concatDisjuncts xs
+        concatDisjuncts (Prop x:xs) = x : concatDisjuncts xs
+        concatDisjuncts (Neg (Prop x):xs) = (-x) : concatDisjuncts xs
 
-concatDisjuncts [] = []
-concatDisjuncts (Dsj x:xs) = concatDisjuncts x ++ concatDisjuncts xs
-concatDisjuncts (Prop x:xs) = x : concatDisjuncts xs
-concatDisjuncts (Neg (Prop x):xs) = (-x) : concatDisjuncts xs
+testC2C :: IO()
+testC2C = do
+          formulas <- (getRandomFs 100)
+          test 100 clsProp formulas
+
+--- Some help functions to evaluate forms and cls
+-- apply lets you apply a function to a list to return a list of Bools
+apply :: (a -> Bool) -> [a] -> [Bool]
+apply _ [] = []
+apply f (x:xs) = (f x) : apply f xs
+
+-- evalAll 
+-- Use apply to get a list of all evaluation values of a form
+evalAll :: Form -> [Bool]
+evalAll f = apply (\ v -> eval v f) (allVals f)
+
+-- Create a disjunction form of a clause
+clauseToForm :: Clause -> Form
+clauseToForm xs = Dsj $ map clauseToProp xs
+    where
+        clauseToProp x | x > 0 = Prop x
+                       | otherwise = Neg (Prop (x * (-1)))
+            
+-- expects a form, create a cls from it and thereafter put it again in Form format            
+cls2form :: Form -> Form
+cls2form f = let c = cnf f
+             in Cnj $ map clauseToForm (cnf2cls c) -- cls is a conjunction of disjunctions but in another format
+             
+-- to check if the above function actually gives the expected result, check if the cls2form to a cls gives the same as form to a cls
+checkcls2form :: Form -> Bool
+checkcls2form f = cnf2cls (cnf f) == cnf2cls (cls2form f)
+             
+-- a form should be logically equivalent to the form of a the cls of that form
+clsProp f = equiv f $ cls2form f
