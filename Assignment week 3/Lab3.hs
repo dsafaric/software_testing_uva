@@ -48,12 +48,13 @@ apply f (x:xs) = (f x) : apply f xs
 
 -- Use apply to get a list of all evaluation values of a form
 evalAll :: Form -> [Bool]
-evalAll f = apply (\ v -> eval v f) (allVals f)
+evalAll f = entails (\ v -> eval v f) (allVals f)
 
 -- This test functions checks if you zip all valuations of both formulas if (not f1 || f2) is true for all elements of the list
 testImpl :: Form -> Form -> Bool
-testImpl f1 f2 = let table = zip (evalAll f1) (evalAll f2)
-                 in all (\(x,y) -> not x || y) table
+testImpl f1 f2 | imply f1 f2 =  let table = zip (evalAll f1) (evalAll f2)
+                                in all (\(x,y) -> not x || y) table
+               | otherwise = True
                  
 -- If two formulas are equivalent they should imply each other. If not the the formulas are not equivalent this test 
 -- should just return True since non equivalent functions are not tested here
@@ -77,11 +78,11 @@ cnf form = f $ (nnf . arrowfree) form -- Use function f on nnf of form
         f (Cnj fs) = Cnj (map f fs)
         f (Dsj fs) = dist (map f fs)
 
-        -- sub function dist which expects a list of forms and does the DIST algorithm from the lecture on each of the elements
+        -- Sub function dist which expects a list of forms and does the DIST algorithm from the lecture on each of the elements
         dist [] = Dsj []
         dist (x:xs) = foldr subDist x xs
 
-        -- the DIST algorithm from the lecture, only it is made useful for conjunctions as a list instead of a pair
+        -- The DIST algorithm from the lecture, only it is made useful for conjunctions as a list instead of a pair
         -- Since conjunctions can be nested on each of the elements in the conjunctions the subDist should be applied
         subDist (Cnj f) p = Cnj (map (\x -> subDist x p) f)    
         subDist f (Cnj p) = Cnj (map (\x -> subDist f x) p)
@@ -110,9 +111,8 @@ allProps f = propEquiv f &&
              propNNF f &&
              propCNF f
 
---- Random test generator
--- testGenerator will generate 100 random formulas and check for each of them
--- if the testProperties
+-- Random test generator
+-- TestGenerator will generate 100 random formulas and check for each of them if the testProperties hold
 testGenerator :: IO()
 testGenerator = do
                 formulas <- (getRandomFs 100)
@@ -123,7 +123,7 @@ type Clause = [Int]
 type Clauses = [Clause]
 
 -- Seems to give the right result, though with some propositions in the wrong order. This however makes logically no difference since
--- order does not matter in 
+-- order does not matter in disjunctions. 
 cnf2cls :: Form -> Clauses
 cnf2cls form = cnf2cls' form 
     where
@@ -154,7 +154,7 @@ testC2C = do
           formulas <- (getRandomFs 100)
           test 100 clsProp formulas
 
---- Some help functions to evaluate forms and cls
+-- Some help functions to evaluate forms and cls
 -- Create a disjunction form of a clause
 clauseToForm :: Clause -> Form
 clauseToForm xs = Dsj $ map clauseToProp xs
@@ -162,15 +162,15 @@ clauseToForm xs = Dsj $ map clauseToProp xs
         clauseToProp x | x > 0 = Prop x
                        | otherwise = Neg (Prop (x * (-1)))
             
--- expects a form, create a cls from it and thereafter put it again in Form format            
+-- Expects a form, create a cls from it and thereafter put it again in Form format            
 cls2form :: Form -> Form
 cls2form f = let c = cnf f
              in Cnj $ map clauseToForm (cnf2cls c) -- cls is a conjunction of disjunctions but in another format
              
--- to check if the above function actually gives the expected result, check if the cls2form to a cls gives the same as form to a cls
+-- To check if the above function actually gives the expected result, check if the cls2form to a cls gives the same as form to a cls
 checkcls2form :: Form -> Bool
 checkcls2form f = cnf2cls (cnf f) == cnf2cls (cls2form f)
              
--- a form should be logically equivalent to the form of a the cls of that form
+-- A form should be logically equivalent to the form of a the cls of that form
 clsProp :: Form -> Bool
 clsProp f = equiv f $ cls2form f
