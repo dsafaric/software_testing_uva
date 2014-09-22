@@ -5,10 +5,6 @@ where
 import Week3
 
 ---- Exercise 1 ----
--- More example forms for us to check if base cases are True
-form4 = Impl p q
-form5 = Impl (Neg q) (Neg p)
-
 -- Opposite of all which checks if the result of function f on all the elements of the list return False
 none :: (a -> Bool) -> [a] -> Bool
 none _ [] = True
@@ -44,13 +40,32 @@ testValidity f  -- If a formula is a tautology it is not a contradiction and vic
                 
                 -- It should always be one of the above cases
                 | otherwise = False
- 
--- If two formulas are equivalent they should imply each other
--- If not the the formulas are not equivalent this test should just return True since
--- non equivalent functions are not tested here
+
+-- apply lets you apply a function to a list to return a list of Bools
+apply :: (a -> Bool) -> [a] -> [Bool]
+apply _ [] = []
+apply f (x:xs) = (f x) : apply f xs
+
+-- Use apply to get a list of all evaluation values of a form
+evalAll :: Form -> [Bool]
+evalAll f = apply (\ v -> eval v f) (allVals f)
+
+-- This test functions checks if you zip all valuations of both formulas if (not f1 || f2) is true for all elements of the list
+testImpl :: Form -> Form -> Bool
+testImpl f1 f2 = let table = zip (evalAll f1) (evalAll f2)
+                 in all (\(x,y) -> not x || y) table
+                 
+-- If two formulas are equivalent they should imply each other. If not the the formulas are not equivalent this test 
+-- should just return True since non equivalent functions are not tested here
 testEquiv :: Form -> Form -> Bool 
 testEquiv f1 f2| equiv f1 f2 = entails f1 f2 && entails f2 f1
                | otherwise = True
+     
+-- Random testing of formulas
+testAllFormulas :: IO()
+testAllFormulas = do
+                formulas <- (getRandomFs 100)
+                test 100 testValidity formulas
 
 ---- Exercise 2 ----
 cnf :: Form -> Form
@@ -67,6 +82,7 @@ cnf form = f $ (nnf . arrowfree) form -- Use function f on nnf of form
         dist (x:xs) = foldr subDist x xs
 
         -- the DIST algorithm from the lecture, only it is made useful for conjunctions as a list instead of a pair
+        -- Since conjunctions can be nested on each of the elements in the conjunctions the subDist should be applied
         subDist (Cnj f) p = Cnj (map (\x -> subDist x p) f)    
         subDist f (Cnj p) = Cnj (map (\x -> subDist f x) p)
         subDist f1 f2 = Dsj [f1, f2]
@@ -132,22 +148,13 @@ cnf2cls form = cnf2cls' form
         concatDisjuncts (Prop x:xs) = x : concatDisjuncts xs
         concatDisjuncts (Neg (Prop x):xs) = (-x) : concatDisjuncts xs
 
+-- Test the CLS function with the clsProp
 testC2C :: IO()
 testC2C = do
           formulas <- (getRandomFs 100)
           test 100 clsProp formulas
 
 --- Some help functions to evaluate forms and cls
--- apply lets you apply a function to a list to return a list of Bools
-apply :: (a -> Bool) -> [a] -> [Bool]
-apply _ [] = []
-apply f (x:xs) = (f x) : apply f xs
-
--- evalAll 
--- Use apply to get a list of all evaluation values of a form
-evalAll :: Form -> [Bool]
-evalAll f = apply (\ v -> eval v f) (allVals f)
-
 -- Create a disjunction form of a clause
 clauseToForm :: Clause -> Form
 clauseToForm xs = Dsj $ map clauseToProp xs
@@ -165,4 +172,5 @@ checkcls2form :: Form -> Bool
 checkcls2form f = cnf2cls (cnf f) == cnf2cls (cls2form f)
              
 -- a form should be logically equivalent to the form of a the cls of that form
+clsProp :: Form -> Bool
 clsProp f = equiv f $ cls2form f
