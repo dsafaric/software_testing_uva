@@ -48,12 +48,12 @@ apply f (x:xs) = (f x) : apply f xs
 
 -- Use apply to get a list of all evaluation values of a form
 evalAll :: Form -> [Bool]
-evalAll f = entails (\ v -> eval v f) (allVals f)
+evalAll f = apply (\ v -> eval v f) (allVals f)
 
 -- This test functions checks if you zip all valuations of both formulas if (not f1 || f2) is true for all elements of the list
 testImpl :: Form -> Form -> Bool
-testImpl f1 f2 | imply f1 f2 =  let table = zip (evalAll f1) (evalAll f2)
-                                in all (\(x,y) -> not x || y) table
+testImpl f1 f2 | entails f1 f2 =  let table = zip (evalAll f1) (evalAll f2)
+                                  in all (\(x,y) -> not x || y) table
                | otherwise = True
                  
 -- If two formulas are equivalent they should imply each other. If not the the formulas are not equivalent this test 
@@ -99,8 +99,7 @@ propEquiv f = equiv (cnf f) f
 propArrowFree f = equiv (arrowfree f) f
 
 -- A CNF of a formula should be logically equivalent to the NNF formula, with the pre condition that f should already be in arrowfree form
-propNNF f = let a = arrowfree f 
-            in equiv (nnf a) f 
+propNNF f = equiv (nnf (arrowfree f )) (cnf f) 
 
 -- A CNF of a formula should be logically equivalent to the CNF of the CNF of the formula
 propCNF f = let c = cnf f 
@@ -171,6 +170,10 @@ cls2form f = let c = cnf f
 checkcls2form :: Form -> Bool
 checkcls2form f = cnf2cls (cnf f) == cnf2cls (cls2form f)
              
--- A form should be logically equivalent to the form of a the cls of that form
+-- A the form of a cls should be logically equivalent the the original form, as it should be to the nnf, arrowfree and cnf of that form
 clsProp :: Form -> Bool
-clsProp f = equiv f $ cls2form f
+clsProp f = let clsf = cls2form f
+            in equiv f clsf &&
+               equiv (arrowfree f) clsf &&
+               equiv ((nnf.arrowfree) f) clsf &&
+               equiv (cnf f) clsf 
