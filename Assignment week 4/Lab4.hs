@@ -11,15 +11,6 @@ import Data.List.Split
 import Control.Monad
 
 ------- Exercise 3 -------
--- Automated random testing
-mapSet :: (Ord a, Ord b) => (a -> b) -> Set a -> Set b
-mapSet f (Set []) = Set []
-mapSet f (Set (x:xs)) = insertSet (f x) (mapSet f (Set xs))
-
-allPropSet :: (a -> Bool) -> Set a -> Bool
-allPropSet f (Set []) = True
-allPropSet f (Set (x:xs)) = f x && allPropSet f (Set xs)
-
 -- Random int function from week 3
 getRandomInt :: Int -> Int -> IO Int
 getRandomInt k n = getStdRandom (randomR (k, n))
@@ -86,20 +77,26 @@ testProperties s1 s2 = tpUnion s1 s2 &&
         
 -- All elements of set 1 and all elements of set 2 should be present in the union set
 tpUnion :: Ord a => Set a -> Set a -> Bool
-tpUnion s1 s2 = allPropSet (== True) $ mapSet (\x -> inSet x  (unionSet s1 s2)) s1
+tpUnion s1 s2 = checkSet s1 u && checkSet s2 u
+    where
+        u = unionSet s1 s2
+        checkSet (Set []) _ = True
+        checkSet (Set (x:xs)) s2 | inSet x s2 = checkSet (Set xs) s2
+                                 | otherwise = False
 
--- Each element which is in set 1 and in set 2 should be in the difference set of s1 and s2
+-- Each element which is in set 1 and in set 2 should be in the intersection set of s1 and s2
 tpIntersection :: Ord a => Set a -> Set a -> Bool
-tpIntersection s1 s2 = checkSet s1 s2 (intersection s1 s2) && checkSet s2 s1 (intersection s1 s2)
+tpIntersection s1 s2 = checkSet s1 s2 i && checkSet s2 s1 i
     where   
+        i = intersection s1 s2
         checkSet (Set []) _ _= True
-        checkSet _ (Set []) _= True
         checkSet (Set (x:xs)) s2 s3 | inSet x s2 = inSet x s3 && checkSet (Set xs) s2 s3
                                     | otherwise = checkSet (Set xs) s2 s3
 
 tpDifference :: Ord a => Set a -> Set a -> Bool                                    
-tpDifference s1 s2 = checkSet s1 s2 (difference s1 s2) && checkSet s2 s1 (difference s1 s2)
+tpDifference s1 s2 = checkSet s1 s2 d && checkSet s2 s1 d
     where   
+        d = difference s1 s2
         checkSet _ _ (Set []) = True
         checkSet s1 s2 (Set (x:xs)) = not $ inSet x s2 && inSet x s1 && checkSet s1 s2 (Set xs)
   
@@ -142,6 +139,8 @@ specTrans = do
   describe "trClose (Transitive Closure)" $ do
     it "Empty Relation" $ do 
         trClos [] `shouldBe` ([] :: Rel Int)
+    it "Single Relation" $ do
+        property $ \x -> ([(x,x)] :: [(Int, Int)]) == trClos [(x,x)]
     it "The transitive closure of a relation in transitive closure is the same list" $
         property $ \x -> trClos x == trClos (trClos (x :: Rel Int))
     it "Example relation" $ do
@@ -162,26 +161,29 @@ randomRelation = do
     return $ makeRelation $ take x (randomRs (0, 100) g)
     
 -- Creates a relation from a list
+makeRelation :: [a] -> Rel a
 makeRelation [] = []
 makeRelation [x] = []
 makeRelation (x:y:xs) = (x,y) : makeRelation xs
 
+-- Makes a list from a relation
+makeList :: Rel a -> [a]
 makeList [] = []
 makeList ((x,y):xs) = x:y : makeList xs
 
 -- Use the same property as the specTrans, that the trClos a relation already showing all the transitive pairs is the same
-testTransProp1 :: (Ord a, Eq a) => Rel a -> Bool
+testTransProp1 :: (Eq a, Ord a) => Rel a -> Bool
 testTransProp1 r = let trans = trClos r
                    in trans == trClos trans
                    
 -- The trClos of a empty list is empty
-testTransProp2 :: (Ord a, Eq a) => Rel a -> Bool
+testTransProp2 :: (Eq a, Ord a) => Rel a -> Bool
 testTransProp2 r | r == [] = trClos r == [] 
                  | otherwise = True -- testTransProp2 does not say anything about other list and therefore should just return True
 
 -- The trClos of a relation with only unique elements should have the same length as the original list
-testTransProp3 :: (Ord a, Eq a) => Rel a -> Bool
-testTransProp3 r | list == nub list =  trClos r == r
+testTransProp3 :: (Eq a, Ord a) => Rel a -> Bool
+testTransProp3 r | list == nub list =  trClos r == sort r
                  | otherwise = True -- testTransProp3 does not say anything about other list and therefore should just return True
     where
         list = makeList r
@@ -192,9 +194,19 @@ testAllTrans r = testTransProp1 r &&
                  testTransProp2 r &&
                  testTransProp3 r
 
--- Random test generator
+-- Random test generator for one 
 testTrans :: IO Bool
 testTrans = randomRelation >>= return . testAllTrans
-            
+
+-- Rel a gives problems as an instance of Arbitrary, so we need to make it explicit what type a is..
+-- In this case, chosen for Int
+testTrClos :: IO()
+testTrClos = quickCheck (testAllTrans :: Rel Int -> Bool)
 
 ------- Exercise 8 -------
+-- See explanation in the report 
+fp :: Eq a => (a -> a) -> a -> a
+fp f = \x -> if x == f x then x else  (f x)
+
+-- Example function
+s = (\x -> (x + 4/x)/2)
