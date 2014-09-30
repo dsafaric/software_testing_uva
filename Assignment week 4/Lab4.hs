@@ -139,14 +139,11 @@ tpDifference s1 s2 = checkSet s1 s2 d && checkSet s2 s1 d
        
 -- Test properties of the functions given above  
       
-testProp2 :: Set Int -> Set Int -> Bool
-testProp2 s1@(Set x) s2@(Set y) = (s1 `difference` s2) == list2set (x \\ y)  -- 100 passed
+tpDifference3 :: Set Int -> Set Int -> Bool
+tpDifference3 s1@(Set x) s2@(Set y) = (s1 `difference` s2) == list2set (x \\ y)  -- 100 passed
 
-testProp3 :: Set Int -> Set Int -> Bool
-testProp3 s1@(Set x) s2@(Set y) = (s1 `union'` s2) == list2set (x `union` y) -- 100 passed
-
---testProp4 :: Set Int -> Set Int -> Bool
---testProp4 s1@(Set x) s2@(Set y) = (s1 `intersection'` s2) == list2set (x `intersect` y) -- 100 passed
+tpUnion3 :: Set Int -> Set Int -> Bool
+tpUnion3 s1@(Set x) s2@(Set y) = (s1 `union'` s2) == list2set (x `union` y) -- 100 passed
   
 -- Testing of the functions using the testable properties  
 tests :: Int -> IO()
@@ -159,8 +156,8 @@ automatedTS :: IO()
 automatedTS = tests 100
 
 -- Now using quickCheck
-testSetQuick :: IO()
-testSetQuick = quickCheck (testProperties :: Set Int -> Set Int -> Bool)
+testSQ :: IO()
+testSQ = quickCheck (testProperties :: Set Int -> Set Int -> Bool)
         
 ------- Exercise 5 -------
 type Rel a = [(a,a)]
@@ -201,27 +198,6 @@ makeOrderedRelation :: [Int] -> Rel Int
 makeOrderedRelation x = makeRelation $ nub $ sort x
 
 ------- Exercise 7 -------
-
--- The randRel' function takes an Int and produces 1 relation from that. The first pair element has the value of the random
-    -- integer while the second the value of the first+1. 
-
-randRel' :: Int -> IO (Int, Int)
-randRel' n = do
-		g <- getStdGen
-		r <- getRandomInt n n
-		return (r,r+1)
- 
--- the function returns random relations in a given range of length and at a starting point which
-	-- is the first element of the first tupple
-
-randRels' :: Int -> Int -> IO [(Int,Int)]
-randRels' 0 _ = return []
-randRels' n y = do
-		x <- randRel' y
-		xs <- randRels' (n-1) (y+1)
-		return (x:xs)
-
-
 -- Create a random relation with at least 100 pairs and at most 200 of values in between 0 and 100\
 randomRelation :: IO (Rel Int)
 randomRelation = do
