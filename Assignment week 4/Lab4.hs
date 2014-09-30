@@ -15,12 +15,12 @@ import Control.Monad
 getRandomInt :: Int -> Int -> IO Int
 getRandomInt k n = getStdRandom (randomR (k, n))
 
--- Creates a list of random integers of values 0 to 100 of length something between 0 and 100
+-- Creates a list of random integers of values 0 to 100 of length something between -1000 and 1000
 randomSet :: IO (Set Int)
 randomSet = do
     g <- getStdGen
-    x <- getRandomInt 0 60
-    return $ list2set $ take x (randomRs (0, 100) g)
+    x <- getRandomInt 0 100
+    return $ list2set $ take x (randomRs (-1000, 1000) g)
     
 randomSets :: Int -> IO [Set Int]
 randomSets 0 = return []
@@ -85,7 +85,8 @@ tpUnion s1 s2 = checkSet s1 u && checkSet s2 u
         checkSet (Set []) _ = True
         checkSet (Set (x:xs)) s2 | inSet x s2 = checkSet (Set xs) s2
                                  | otherwise = False
-                                 
+                 
+-- Only elements in s1 and s2 should be in the union set              
 tpUnion2 :: Ord a => Set a -> Set a -> Bool
 tpUnion2 s1 s2 = checkSet s1 s2 u
     where
@@ -102,7 +103,8 @@ tpIntersection s1 s2 = checkSet s1 s2 i && checkSet s2 s1 i
         checkSet (Set []) _ _= True
         checkSet (Set (x:xs)) s2 s3 | inSet x s2 = inSet x s3 && checkSet (Set xs) s2 s3
                                     | otherwise = checkSet (Set xs) s2 s3
-                                    
+  
+-- Only elements in s1 and s2 should in the intersection set.\  
 tpIntersection2 :: Ord a => Set a -> Set a -> Bool
 tpIntersection2 s1 s2 = checkSet s1 s2 i
     where   
