@@ -72,7 +72,9 @@ difference (Set (x:xs)) set2
 -- All properties:
 testProperties ::Ord a => Set a -> Set a -> Bool
 testProperties s1 s2 = tpUnion s1 s2 &&
+                       tpUnion2 s1 s2 && 
                        tpIntersection s1 s2 &&
+                       tpIntersection2 s1 s2 &&
                        tpDifference s1 s2
         
 -- All elements of set 1 and all elements of set 2 should be present in the union set
@@ -83,6 +85,14 @@ tpUnion s1 s2 = checkSet s1 u && checkSet s2 u
         checkSet (Set []) _ = True
         checkSet (Set (x:xs)) s2 | inSet x s2 = checkSet (Set xs) s2
                                  | otherwise = False
+                                 
+tpUnion2 :: Ord a => Set a -> Set a -> Bool
+tpUnion2 s1 s2 = checkSet s1 s2 u
+    where
+        u = unionSet s1 s2
+        checkSet _ _ (Set []) = True
+        checkSet s1 s2 (Set (x:xs)) | inSet x s1 || inSet x s2 = checkSet s1 s2 (Set xs)
+                                    | otherwise = False
 
 -- Each element which is in set 1 and in set 2 should be in the intersection set of s1 and s2
 tpIntersection :: Ord a => Set a -> Set a -> Bool
@@ -92,6 +102,16 @@ tpIntersection s1 s2 = checkSet s1 s2 i && checkSet s2 s1 i
         checkSet (Set []) _ _= True
         checkSet (Set (x:xs)) s2 s3 | inSet x s2 = inSet x s3 && checkSet (Set xs) s2 s3
                                     | otherwise = checkSet (Set xs) s2 s3
+                                    
+tpIntersection2 :: Ord a => Set a -> Set a -> Bool
+tpIntersection2 s1 s2 = checkSet s1 s2 i
+    where   
+        i = intersection s1 s2
+        checkSet _ _ (Set [])= True
+        checkSet s1 s2 (Set (x:xs)) | inSet x s1 && inSet x s2 = checkSet s1 s2 (Set xs)
+                                    | otherwise = False
+                                    
+
 
 tpDifference :: Ord a => Set a -> Set a -> Bool                                    
 tpDifference s1 s2 = checkSet s1 s2 d && checkSet s2 s1 d
