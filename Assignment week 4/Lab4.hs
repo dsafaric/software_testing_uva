@@ -69,6 +69,20 @@ difference (Set (x:xs)) set2
         | inSet x set2 = difference (Set xs) set2
         | otherwise = insertSet x $ difference (Set xs) set2
 
+-- Union, Intersection and Difference functions by using the following approach:
+    -- Set property -> List [a]
+    -- processing List [a] -> returning (Set a) property
+
+set2list :: Set a -> [a]
+set2list (Set []) = []
+set2list (Set (x:xs)) = x : set2list (Set xs)
+
+union' :: Ord a => Set a -> Set a -> Set a
+union' xs ys = list2set (nub (set2list xs ++ set2list ys))
+
+intersect' :: Ord a => Set a -> Set a -> Set a
+intersect' xs ys = list2set ((set2list xs) `intersect` (set2list ys))
+
 -- All properties:
 testProperties ::Ord a => Set a -> Set a -> Bool
 testProperties s1 s2 = tpUnion s1 s2 &&
