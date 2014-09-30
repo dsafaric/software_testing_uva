@@ -69,6 +69,7 @@ difference (Set (x:xs)) set2
         | inSet x set2 = difference (Set xs) set2
         | otherwise = insertSet x $ difference (Set xs) set2
 
+---- Since we each did the assignments, this is another solution we came up with: -----
 -- Union, Intersection and Difference functions by using the following approach:
     -- Set property -> List [a]
     -- processing List [a] -> returning (Set a) property
@@ -143,8 +144,8 @@ tests n = do
          y <- randomSets n 
          test n testProperties x y
  
-automatedTestSets :: IO()
-automatedTestSets = tests 100
+automatedTS :: IO()
+automatedTS = tests 100
 
 -- Now using quickCheck
 testSetQuick :: IO()
