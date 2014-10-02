@@ -18,7 +18,7 @@ specSudoku = do
   describe "Normal Sudoku" $ do
    -- it "An empty grid should throw an exception" $ do
        -- shouldThrow anyException >>= (sud2grid (grid2sud [[]])) 
-    it "A random Grid with duplicates should be be a valid Sudoku" $ do
+    it "A random Grid with duplicates should be be an invalid Sudoku" $ do
         g <- getRandomUnvalidGrid
         let s = consistent (grid2sud g)
         shouldBe s False
@@ -80,40 +80,38 @@ testProperties :: IO Bool
 testProperties = createRandomSudoku >>= return.testMinimal
 
 ------- Exercise 3 -------
+deleteB :: [Row] -> [Column] -> Sudoku -> Sudoku
 deleteB _ [] s = s
 deleteB xs (y:ys) s = deleteB xs ys (deleteB' s xs y) 
     where
         deleteB' s [] _ = s
         deleteB' s (x:xs) y = deleteB' (eraseS s (x,y)) xs y
         
+randomBlock :: IO ([Row], [Column])
 randomBlock = do
                 x <- getRandomInt 2
                 y <- getRandomInt 2
                 return ([x*3 + 1, x*3 +2 ,x*3 + 3], [y*3+1, y*3+2, y*3+3])
-                
-randomBlocks3 s = do
-                x <- randomBlock
-                y <- randomBlock
-                z <- randomBlock
-                if (x /= y && y/= z && x /= z) 
-                then return $ deleteB (fst z) (snd z) $ deleteB (fst y) (snd y) $ deleteB (fst x) (snd x) s
-                else randomBlocks3 s
-                
-randomBlocks4 s = do
-                w <- randomBlock
-                x <- randomBlock
-                y <- randomBlock
-                z <- randomBlock
-                if (x /= y && y/= z && x /= z && x /= w && y /= w && z /= w) 
-                then return $ deleteB (fst z) (snd z) $ deleteB (fst y) (snd y) $ deleteB (fst x) (snd x) $ deleteB (fst w) (snd w) s
-                else randomBlocks4 s
--- able with 3 and 4 (though takes a very long time) with unique solutions
-delete3RandomBlocks = do 
+   
+randomBlocks :: Int -> [([Row], [Column])] -> Sudoku -> IO Sudoku
+randomBlocks 0 _ s = return s   
+randomBlocks n list s  = do 
+                         x <- randomBlock
+                         if not (elem x list) 
+                         then randomBlocks (n-1) (x:list) (deleteB (fst x) (snd x) s)
+                         else randomBlocks n list s
+   
+-- It will work for 3 and give unique solution Sudoku s, for 4 or 5 it gives multiple solutions Sudoku s, and 6 is not possible
+deleteRandomBlocks :: Int -> IO()  
+deleteRandomBlocks n = do 
                       r <- genRandomSudoku
-                      s <- randomBlocks4 (fst r)
+                      s <- randomBlocks n [] (fst r)
                       let q = solveNs[(s, constraints s)]
-                      if length q >= 1 then showSudoku s else delete3RandomBlocks
-                      
+                      if length q >= 1 then showSudoku s else deleteRandomBlocks n
+             
+            
+-- Function which expects a function that can be used on Sudoku s and there after shows the result with a random Sudoku (for debugging)
+showRandomSudoku :: (Sudoku -> IO Sudoku) -> IO()            
 showRandomSudoku f = do
                      r <- genRandomSudoku
                      s <- f (fst r)
