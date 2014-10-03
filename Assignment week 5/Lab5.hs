@@ -7,9 +7,10 @@ import Test.Hspec
 import Test.QuickCheck
 import Control.Monad
 import System.Random
-
+import SModified
 
 ------- Exercise 1 -------
+-- Time spent: Too much... At least 3 hours, especially to use arbitrary and testable instances of Sudoku..
 runSpec :: IO()
 runSpec = hspec specSudoku
                 
@@ -55,6 +56,7 @@ getRandomGrid' n = do
 ------- Exercise 2 -------
 -- As the assignment suggests, we need to check two things:
 -- If the problem is solvable and has one solution
+-- Time spent: 30/ 45  minutes
 testSolvable :: Sudoku -> Bool
 testSolvable s = uniqueSol (s, constraints s)
 
@@ -80,6 +82,7 @@ testProperties :: IO Bool
 testProperties = createRandomSudoku >>= return.testMinimal
 
 ------- Exercise 3 -------
+-- Time spent: 1.5 /2 hours
 deleteB :: [Row] -> [Column] -> Sudoku -> Sudoku
 deleteB _ [] s = s
 deleteB xs (y:ys) s = deleteB xs ys (deleteB' s xs y) 
@@ -107,7 +110,7 @@ deleteRandomBlocks n = do
                       r <- genRandomSudoku
                       s <- randomBlocks n [] (fst r)
                       let q = solveNs[(s, constraints s)]
-                      if length q >= 1 then showSudoku s else deleteRandomBlocks n
+                      if length q == 1 then showSudoku s else deleteRandomBlocks n
              
             
 -- Function which expects a function that can be used on Sudoku s and there after shows the result with a random Sudoku (for debugging)
@@ -116,11 +119,25 @@ showRandomSudoku f = do
                      r <- genRandomSudoku
                      s <- f (fst r)
                      showSudoku s
-                 
+       
+example3EmptyUnique, example4EmptyUnique, example5EmptyUnique, example5Empty :: IO()
+example3EmptyUnique = deleteRandomBlocks 3 
+example4EmptyUnique = deleteRandomBlocks 4
+
+-- Does not seem to terminate, so deleting 5 blocks will probably result in a Sudoku without an unique solution
+example5EmptyUnique = deleteRandomBlocks 5 
+
+-- Will work, but gives a solution with multiple solutions, so you have to guess, logically this can be done for all number up till 9
+example5Empty = showRandomSudoku $ randomBlocks 5 [] 
+
+       
 fullGrid :: Grid                 
 fullGrid = replicate 9 [1..9]                            
 ------- Exercise 4 -------
+---- See SModified.hs ----
 
 ------- Exercise 5 -------
+---- See SModified.hs ----
 
 ------- Exercise 6 -------
+-- TODO
