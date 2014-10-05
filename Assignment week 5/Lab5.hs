@@ -136,7 +136,7 @@ fullGrid = replicate 9 [1..9]
 ---- See SModified.hs ----
 
 ------- Exercise 6 -------
--- Time spent: 2,5 hours (for now)
+-- Time spent: 3,5 hours
 {-
     According to the internet, which is of course always right, difficulty depends mostly on which techniques are used to
     solve a Sudoku. Since this is a bit out of our scope we checked if there was another way to determine difficulty.
@@ -202,3 +202,32 @@ selectiveMinimalizeHard n ((r,c):rcs) k
    | uniqueSol n'  = selectiveMinimalizeHard n' rcs (k-1)
    | otherwise     = selectiveMinimalizeHard n  rcs k
   where n' = eraseN n (r,c) 
+  
+length3 (a,b,cs) = length cs
+
+countEasy = do
+            s <- genEasy 
+            let r = snd s 
+            return $ sum $ map length3 r
+            
+countHard = do
+            s <- genHard 
+            let r = snd s 
+            return $ sum $ map length3 r
+        
+genAverage = do
+             x <- genAmount 20 
+             y <- genAmountE 20
+             print $ show ((fromIntegral $ sum x) / 20) ++ " " ++  show ((fromIntegral $sum y) / 20)
+        
+genAmount 0 = return []           
+genAmount n = do
+              x <- countHard
+              xs <- genAmount (n-1)
+              return (x:xs)
+              
+genAmountE 0 = return []           
+genAmountE n = do
+              x <- countEasy
+              xs <- genAmountE (n-1)
+              return (x:xs)
