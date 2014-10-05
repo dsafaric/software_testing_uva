@@ -5,6 +5,7 @@ import System.Random
 import SS
 import Control.Monad
 
+------- Exercise 4 -------
 -- Time spent: 45 minutes
 -- Example grid from the assignment
 exampleGridNRC :: Grid
@@ -85,17 +86,13 @@ subGrid2 :: Sudoku -> (Row,Column) -> [Value]
 subGrid2 s (r,c) = 
   [ s (r',c') | r' <- bl2 r, c' <- bl2 c ]
 
--- Check for free values in the extra subgrids
+-- Check for free values in the extra subgrids, the extra constraints formalized
 freeInSubgrid2 :: Sudoku -> (Row,Column) -> [Value]
 freeInSubgrid2 s (r,c) = freeInSeq (subGrid2 s (r,c))  
 
 -- The same as freeAtPos but intersect it with the extra subgrid
 freeAtPos2 :: Sudoku -> (Row,Column) -> [Value]
-freeAtPos2 s (r,c) = 
-  (freeInRow s r) 
-   `intersect` (freeInColumn s c) 
-   `intersect` (freeInSubgrid s (r,c)) 
-   `intersect` (freeInSubgrid2 s (r,c))
+freeAtPos2 s (r,c) = freeAtPos s (r,c) `intersect` (freeInSubgrid2 s (r,c))
    
 -- New injective for the new subgrid
 subgrid2Injective :: Sudoku -> (Row,Column) -> Bool
@@ -112,7 +109,7 @@ prune2 _ [] = []
 prune2 (r,c,v) ((x,y,zs):rest)
   | r == x = (x,y,zs\\[v]) : prune2 (r,c,v) rest
   | c == y = (x,y,zs\\[v]) : prune2 (r,c,v) rest
-  | sameblock (r,c) (x,y) = (x,y,zs\\[v]) : prune2 (r,c,v) rest
+  | sameblock (r,c) (x,y)  = (x,y,zs\\[v]) : prune2 (r,c,v) rest
   | sameblock2 (r,c) (x,y) = (x,y,zs\\[v]) : prune2 (r,c,v) rest
   | otherwise = (x,y,zs) : prune2 (r,c,v) rest
   
@@ -153,14 +150,14 @@ solveAndShow2 gr = solveShowNs2 (initNode2 gr)
 solveShowNs2 :: [Node] -> IO()
 solveShowNs2 = sequence_ . fmap showNode2 . solveNs2
 
--- For assignment 5:
+------- Exercise 5 -------
 -- Almost everything is the same only using the new functions associated with NRC Sudoku s
 -- Time spent: 10 minutes
 minimalize2 :: Node -> [(Row,Column)] -> Node
 minimalize2 n [] = n
 minimalize2 n ((r,c):rcs) 
-   | uniqueSol2 n' = minimalize n' rcs
-   | otherwise     = minimalize n  rcs
+   | uniqueSol2 n' = minimalize2 n' rcs
+   | otherwise     = minimalize2 n  rcs
   where n' = eraseN n (r,c)
   
 uniqueSol2 :: Node -> Bool
@@ -174,10 +171,9 @@ genProblemNRC n = do ys <- randomize xs
                      return (minimalize2 n ys)
    where xs = filledPositions (fst n)
    
-genRandomProblemNRC = do
-                      r <- genRandomSudoku2
-                      s <- genProblemNRC r
-                      return s
+-- f = return for only creating a random Sudoku and f = showNode2 to show it
+-- Also just trying out another notation for IO actions
+genRandomProblemNRC f = genRandomSudoku2 >>= \r -> genProblemNRC r >>= \s -> f s
                       
 genRandomSudoku2 :: IO Node
 genRandomSudoku2 = do [r] <- rsolveNs2 [emptyN]
@@ -192,3 +188,11 @@ rsuccNode2 (s,cs) =
 
 rsolveNs2 :: [Node] -> IO [Node]
 rsolveNs2 ns = rsearch rsuccNode2 solved (return ns)
+
+-- This takes a loooooooong time, takes even longer if we try to figure out for sure if it has one solution
+test :: IO()
+test = do 
+       x <- genRandomProblemNRC return
+       --let s = uniqueSol2 x
+       --if s then 
+       showNode2 x --else error "No minimal NRC Sudoku"

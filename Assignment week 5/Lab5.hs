@@ -129,15 +129,76 @@ example5EmptyUnique = deleteRandomBlocks 5
 
 -- Will work, but gives a solution with multiple solutions, so you have to guess, logically this can be done for all number up till 9
 example5Empty = showRandomSudoku $ randomBlocks 5 [] 
-
        
 fullGrid :: Grid                 
 fullGrid = replicate 9 [1..9]                            
-------- Exercise 4 -------
----- See SModified.hs ----
-
-------- Exercise 5 -------
+------- Exercise 4 & Exercise 5 -------
 ---- See SModified.hs ----
 
 ------- Exercise 6 -------
--- TODO
+-- Time spent: 2,5 hours (for now)
+{-
+    According to the internet, which is of course always right, difficulty depends mostly on which techniques are used to
+    solve a Sudoku. Since this is a bit out of our scope we checked if there was another way to determine difficulty.
+    Something we found was that difficulty depends not only on the amount of number given but also on how the given values 
+    are distributed. When whole grids are left empty it is more difficult to solve the Sudoku. Next to that, if certain 
+    number appear less (and evidentially others more) it is more difficult than if they are evenly balanced. Below are an 
+    easy (random) Sudoku with 30 given values and a harder one.
+-}
+
+-- The list of values that may be deleted, this way a number is never less than three times represented in the Sudoku
+permitDelete :: [Int]
+permitDelete = concatMap (replicate 6) [1..9]       
+
+-- Checks the amount of empty positions in a subGrid
+checkSubGrid :: Sudoku -> (Row, Column) -> Int
+checkSubGrid s (r,c) = length $ filter (/=0) (subGrid s (r,c))          
+    
+genEasy :: IO Node          
+genEasy = do n <- genRandomSudoku
+             let xs = filledPositions (fst n)
+             ys <- randomize xs
+             return (selectiveMinimalizeEasy n ys 51 permitDelete)        
+        
+selectiveMinimalizeEasy :: Node -> [(Row,Column)] -> Int -> [Int] -> Node
+selectiveMinimalizeEasy n [] _ _= n
+selectiveMinimalizeEasy n _ 0 _= n
+selectiveMinimalizeEasy n ((r,c):rcs) k list
+   | not $ elem (fst n (r,c)) list = selectiveMinimalizeEasy n  rcs k list-- If the value at (r,c) is already 6 times deleted then go on with another field
+   | checkSubGrid (fst n) (r,c) <= 1 = selectiveMinimalizeEasy n  rcs k list-- Each subGrid should at least have one value
+   | uniqueSol n'  = selectiveMinimalizeEasy n' rcs (k-1) $ delete (fst n (r,c)) list
+   | otherwise     = selectiveMinimalizeEasy n  rcs k list
+  where n' = eraseN n (r,c)
+  
+exampleEasy = genEasy >>= \x -> showNode x
+  
+-- And now the hard one
+-- First create list of permitDelete
+mustDelete = do 
+               x <- getRandomInt 8
+               y <- getRandomInt 8
+               return $ replicate 7 (x + 1) ++ replicate 7 (y + 2)
+               
+genHard = do r <- genRandomSudoku
+             n <- randomBlocks 2 [] (fst r) -- Delete two random blocks
+             let b = uniqueSol (n, constraints n) -- While still have a unique solution
+             let xs = filledPositions n
+             ys <- randomize xs
+             md <- mustDelete
+             if b then return (deleteList (n, constraints n) ys 33 md []) else genHard
+    
+deleteList n [] k _ cns = selectiveMinimalizeHard n cns k 
+deleteList n rcs k [] cns = selectiveMinimalizeHard n (cns ++ rcs) k    
+deleteList n ((r,c):rcs) k list cns
+   | elem s list && uniqueSol n' = deleteList n' rcs (k-1) (delete s list) cns
+   | otherwise = deleteList n rcs k list (cns ++ [(r,c)])
+  where n' = eraseN n (r,c)
+        s  = fst n (r,c)
+             
+selectiveMinimalizeHard :: Node -> [(Row,Column)] -> Int -> Node
+selectiveMinimalizeHard n [] _ = n
+selectiveMinimalizeHard n _ 0 = n  
+selectiveMinimalizeHard n ((r,c):rcs) k
+   | uniqueSol n'  = selectiveMinimalizeHard n' rcs (k-1)
+   | otherwise     = selectiveMinimalizeHard n  rcs k
+  where n' = eraseN n (r,c) 
