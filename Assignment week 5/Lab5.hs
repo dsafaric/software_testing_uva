@@ -8,9 +8,10 @@ import Test.QuickCheck
 import Control.Monad
 import System.Random
 import SModified
+import CrossSudoku
 
 ------- Exercise 1 -------
--- Time spent: Too much... At least 3 hours, especially to use arbitrary and testable instances of Sudoku..
+-- Time spent: Too much... At least 3 hours, especially to use arbitrary and testable instances of Sudoku.. Which did not work
 runSpec :: IO()
 runSpec = hspec specSudoku
                 
@@ -39,6 +40,7 @@ specSudoku = do
         shouldBe q True
         
 -- Create a random grid which can not be a valid Sudoku
+getRandomUnvalidGrid :: IO Grid
 getRandomUnvalidGrid = getRandomGrid2 9
     where
         getRandomGrid2 0 = return []
@@ -47,11 +49,11 @@ getRandomUnvalidGrid = getRandomGrid2 9
                            xs <- getRandomGrid2 (n-1)
                            return (x:xs)
 
-getRandomGrid' 0 = return []
-getRandomGrid' n = do
-                x <- getRandomInt 8 -- Makes sure there are doubles
-                xs <- getRandomGrid' (n-1)
-                return (x:xs)
+        getRandomGrid' 0 = return []
+        getRandomGrid' n = do
+                        x <- getRandomInt 8 -- Makes sure there are doubles
+                        xs <- getRandomGrid' (n-1)
+                        return (x:xs)
                
 ------- Exercise 2 -------
 -- As the assignment suggests, we need to check two things:
@@ -72,6 +74,7 @@ testUnique s = length (
 testMinimal :: Sudoku -> Bool
 testMinimal s = testSolvable s && testUnique s
 
+-- Create a random unsolved Sudoku
 createRandomSudoku :: IO Sudoku
 createRandomSudoku = do
                      r <- genRandomSudoku
@@ -82,10 +85,11 @@ testProperties :: IO Bool
 testProperties = createRandomSudoku >>= return.testMinimal
 
 ------- Exercise 3 -------
--- Time spent: 1.5 /2 hours
-deleteB :: [Row] -> [Column] -> Sudoku -> Sudoku
-deleteB _ [] s = s
-deleteB xs (y:ys) s = deleteB xs ys (deleteB' s xs y) 
+-- Time spent: 1.5 / 2 hours
+-- Delete all the values in the two given lists
+deleteBlock :: [Row] -> [Column] -> Sudoku -> Sudoku
+deleteBlock _ [] s = s
+deleteBlock xs (y:ys) s = deleteBlock xs ys (deleteB' s xs y) 
     where
         deleteB' s [] _ = s
         deleteB' s (x:xs) y = deleteB' (eraseS s (x,y)) xs y
@@ -101,10 +105,10 @@ randomBlocks 0 _ s = return s
 randomBlocks n list s  = do 
                          x <- randomBlock
                          if not (elem x list) 
-                         then randomBlocks (n-1) (x:list) (deleteB (fst x) (snd x) s)
+                         then randomBlocks (n-1) (x:list) (deleteBlock (fst x) (snd x) s)
                          else randomBlocks n list s
    
--- It will work for 3 and give unique solution Sudoku s, for 4 or 5 it gives multiple solutions Sudoku s, and 6 is not possible
+-- It will work for 3 and 4 and give unique solution Sudokus, for 5 and up it will give non unique solutions
 deleteRandomBlocks :: Int -> IO()  
 deleteRandomBlocks n = do 
                       r <- genRandomSudoku
@@ -127,12 +131,15 @@ example4EmptyUnique = deleteRandomBlocks 4
 -- Does not seem to terminate, so deleting 5 blocks will probably result in a Sudoku without an unique solution
 example5EmptyUnique = deleteRandomBlocks 5 
 
--- Will work, but gives a solution with multiple solutions, so you have to guess, logically this can be done for all number up till 9
+-- Will work, but gives a solution with multiple solutions, so you have to guess and multiple answers are correct, 
+-- logically this can be done for all number up till 9 (empty Sudoku)
 example5Empty = showRandomSudoku $ randomBlocks 5 [] 
        
+-- For debugging purposes
 fullGrid :: Grid                 
 fullGrid = replicate 9 [1..9]                            
 ------- Exercise 4 & Exercise 5 -------
+
 ---- See SModified.hs ----
 
 ------- Exercise 6 -------
@@ -205,29 +212,36 @@ selectiveMinimalizeHard n ((r,c):rcs) k
   
 length3 (a,b,cs) = length cs
 
-countEasy = do
-            s <- genEasy 
-            let r = snd s 
-            return $ sum $ map length3 r
-            
-countHard = do
-            s <- genHard 
-            let r = snd s 
-            return $ sum $ map length3 r
+-- Count the constraints of easy or hard Sudokus
+countConstraints :: Bool -> IO Int
+countConstraints b =  
+ do
+    s <- sub' b
+    let r = snd s 
+    return $ sum $ map length3 r
+ where
+    sub' True = genEasy
+    sub' False = genHard
         
+-- Count the amounts of constraints of multiple easy or hard Sudokus 
+genAmount :: Int -> Bool -> IO [Int]
+genAmount 0 _ = return []           
+genAmount n b = 
+ do
+    x <- sub' b
+    xs <- genAmount (n-1) b
+    return (x:xs)
+ where
+    sub' True = countConstraints True
+    sub' False = countConstraints False
+    
+-- Show the average, pretty slow though
+genAverage :: IO ()
 genAverage = do
-             x <- genAmount 20 
-             y <- genAmountE 20
-             print $ show ((fromIntegral $ sum x) / 20) ++ " " ++  show ((fromIntegral $sum y) / 20)
-        
-genAmount 0 = return []           
-genAmount n = do
-              x <- countHard
-              xs <- genAmount (n-1)
-              return (x:xs)
-              
-genAmountE 0 = return []           
-genAmountE n = do
-              x <- countEasy
-              xs <- genAmountE (n-1)
-              return (x:xs)
+             x <- genAmount 20 False
+             y <- genAmount 20 True
+             let vx = (fromIntegral $ sum x) / 20
+             let vy = (fromIntegral $ sum y) / 20
+             print $ "Hard: " ++ show vx ++ ", Easy: "  ++ 
+                     show vy ++ ", Difference: " ++ show (vx - vy)
+  

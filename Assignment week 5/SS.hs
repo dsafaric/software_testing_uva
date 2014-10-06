@@ -137,8 +137,7 @@ length3rd :: (a,b,[c]) -> (a,b,[c]) -> Ordering
 length3rd (_,_,zs) (_,_,zs') = 
   compare (length zs) (length zs')
 
-prune :: (Row,Column,Value) 
-      -> [Constraint] -> [Constraint]
+prune :: (Row,Column,Value) -> [Constraint] -> [Constraint]
 prune _ [] = []
 prune (r,c,v) ((x,y,zs):rest)
   | r == x = (x,y,zs\\[v]) : prune (r,c,v) rest

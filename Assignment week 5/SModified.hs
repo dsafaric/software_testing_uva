@@ -44,7 +44,10 @@ showRow' [a1,a2,a3,a4,a5,a6,a7,a8,a9] =
      putStr (showVal a9) ; putChar ' '
      putChar '|'         ; putChar '\n'
      
+showRowBetween :: IO()
 showRowBetween = do putStrLn "|   +-----|--+   +--|-----+   |"
+
+showRow2 :: [Value] -> IO()
 showRow2 [a1,a2,a3,a4,a5,a6,a7,a8,a9] = 
  do  putChar '|'         ; putChar ' '
      putStr (showVal a1) ; putChar ' '
@@ -75,42 +78,43 @@ showGrid2 [as,bs,cs,ds,es,fs,gs,hs,is] =
     putStrLn ("+---------+---------+---------+")
      
 -- Show the new Sudoku
+showSudoku2 :: Sudoku -> IO()
 showSudoku2 = showGrid2 . sud2grid
 
 -- The extra blocks
 bl2 :: Int -> [Int]
 bl2 x = concat $ filter (elem x) blocks2
 
--- The extra subgrids
+-- The extra sub grids
 subGrid2 :: Sudoku -> (Row,Column) -> [Value]
 subGrid2 s (r,c) = 
   [ s (r',c') | r' <- bl2 r, c' <- bl2 c ]
 
--- Check for free values in the extra subgrids, the extra constraints formalized
+-- Check for free values in the extra sub grids, the extra constraints formalized
 freeInSubgrid2 :: Sudoku -> (Row,Column) -> [Value]
 freeInSubgrid2 s (r,c) = freeInSeq (subGrid2 s (r,c))  
 
--- The same as freeAtPos but intersect it with the extra subgrid
+-- The same as freeAtPos but intersect it with the extra sub grid
 freeAtPos2 :: Sudoku -> (Row,Column) -> [Value]
 freeAtPos2 s (r,c) = freeAtPos s (r,c) `intersect` (freeInSubgrid2 s (r,c))
    
--- New injective for the new subgrid
+-- New injective for the new sub grid
 subgrid2Injective :: Sudoku -> (Row,Column) -> Bool
 subgrid2Injective s (r,c) = injective vs where 
    vs = filter (/= 0) (subGrid2 s (r,c))
    
--- Consistent now iff the consistent first and with the subgrid
+-- Consistent now iff the consistent first and with the sub grid
 consistent2 :: Sudoku -> Bool
 consistent2 s = consistent s && (and [ subgrid2Injective s (r,c) | r <- [2,6], c <- [2,6]])
                     
--- Also the same as before, only with another if case, namely for the the new subgrid
+-- Also the same as before, only with another if case, namely for the the new sub grid
 prune2 :: (Row,Column,Value) -> [Constraint] -> [Constraint]
 prune2 _ [] = []
 prune2 (r,c,v) ((x,y,zs):rest)
   | r == x = (x,y,zs\\[v]) : prune2 (r,c,v) rest
   | c == y = (x,y,zs\\[v]) : prune2 (r,c,v) rest
   | sameblock (r,c) (x,y)  = (x,y,zs\\[v]) : prune2 (r,c,v) rest
-  | sameblock2 (r,c) (x,y) = (x,y,zs\\[v]) : prune2 (r,c,v) rest
+  | sameblock2 (r,c) (x,y) = (x,y,zs\\[v]) : prune2 (r,c,v) rest -- New
   | otherwise = (x,y,zs) : prune2 (r,c,v) rest
   
 -- Check for values in the new subgrid 
@@ -189,7 +193,7 @@ rsuccNode2 (s,cs) =
 rsolveNs2 :: [Node] -> IO [Node]
 rsolveNs2 ns = rsearch rsuccNode2 solved (return ns)
 
--- This takes a loooooooong time, takes even longer if we try to figure out for sure if it has one solution
+-- This takes a loooooooong time, takes even longer if we try to figure out for sure if it has one solution (uncomment lines below)
 test :: IO()
 test = do 
        x <- genRandomProblemNRC return
