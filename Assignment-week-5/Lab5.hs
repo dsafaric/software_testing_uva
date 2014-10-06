@@ -16,17 +16,20 @@ import SetOrd
 -- you basically need to write a sudoko consistency check using HSpec
 -- the sudoko should always have unique solution (only one solution) and should always be consistent
 
+
 cons :: IO ()
 cons = hspec $ do
-	describe "consistent" $ do
-		it "sudoko is consistent" $ do
-			consistent (grid2sud example1) `shouldBe` (True :: Bool)
-	describe "unique" $ do
-		it "sudoko solution is unique" $ do
-			uniqueSol (nonIO genRandomSudoku) `shouldBe` (True :: Bool)
-		-- should we use generated and solved Sudoku's or the unsolved ones?
-		-- in case of an solved one, we can use genRandomSudoku, while in the other case
-		-- we use genSud which generates a solved sudoku and generates a problems of it
+	describe "sudoko" $ do
+		it "sudoko is consistent - it has all unique values" $ do
+			r <- genRandomSudoku
+			((consistent . fst) r) `shouldBe` (True :: Bool)
+		it "sudoko has no zeros left" $ do
+			r <- genRandomSudoku
+			length (filter (==True) (filterZeros ((constraints . fst) r ))) `shouldBe` (0 :: Int)
+		it "sudoko is minimal - has only one solution" $ do
+			r <- genRandomSudoku
+			uniqueSol r `shouldBe` (True :: Bool)
+			
 
 genSud :: IO Node
 genSud = do
@@ -36,6 +39,17 @@ genSud = do
 
 nonIO :: IO a -> a
 nonIO = \x -> unsafePerformIO x
+
+-- the filterZeros function takes a list of Contraints given from a Sudoko type, and checks
+	-- whether the values of constraints contain zeros. If so, then it appends to the produced
+	-- list a True (:: Bool) value, and by getting the length of filtered true values we can
+	-- tell if it the random generated Sudoku contains any zero values 
+
+filterZeros :: [Constraint] -> [Bool]
+filterZeros [] = []
+filterZeros (x:xs) = helper x : filterZeros xs
+	where helper (_,_,x) 	| head x == 0	= True
+							| otherwise		= False
 
 -- the following function can be used for testing so that cons won't test on the basis
 	-- of one sample only
@@ -92,4 +106,49 @@ testProp = minimalHspec (nonIO genRandomSudoku) randCons'
 	-- minimalness.. But that unfortunally doesn't work with Hspec since applying it to a list
 	-- of objects is difficult because it accepts only the Testable objects -  while Sudoko isn't
 
+-- Exercise 3
+-- create a random sudoku generator that generates a Sudoku with three empty blocks
+	-- steps:
+	-- generate a sudoku problem
+	-- repeat the process of deleting blocks three times
+		-- the random block number is a random Int between 1 and 9
+		-- find the block
+		-- place all zeros in the block 
 
+-- use the eraseS function :: Sudoku -> (Row,Column) -> Sudoku
+
+sqrtSize :: Int
+sqrtSize = 3 -- size of the blocks
+
+size :: Int
+size = (*) sqrtSize sqrtSize
+
+blocks' :: [[(Row,Column)]]
+blocks' = [[(x + i , y +j ) | i <- [1..sqrtSize], j <- [1..sqrtSize]]
+		| 	x <- [0, sqrtSize..size-sqrtSize],
+			y <- [0, sqrtSize..size-sqrtSize]]
+
+block :: Int -> [(Row,Column)]
+block = \r -> blocks' !! (r - 1)
+
+deleteBlock :: Sudoku -> [(Row,Column)] -> Sudoku
+deleteBlock s [] = s
+deleteBlock s (x:xs) = deleteBlock (deleteBlock' s x) xs
+	where 
+		deleteBlock' s (r,c) = eraseS s (r,c) 
+
+randomBlockInx :: IO [Int]
+randomBlockInx = do
+	g <- newStdGen
+	return $ nub $ take sqrtSize (randomRs (1,9) g)
+
+genBlankBlocks :: [Int] -> Sudoku -> Sudoku
+genBlankBlocks [] s = s
+genBlankBlocks (x:xs) s = let b = block (x :: Int) in
+		genBlankBlocks xs (deleteBlock s b)
+
+testIO :: IO ()
+testIO = do
+	s <- genSud
+	r <- randomBlockInx
+	showSudoku $ genBlankBlocks r (fst $ s)
