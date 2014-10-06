@@ -128,11 +128,26 @@ blocks' = [[(x + i , y +j ) | i <- [1..sqrtSize], j <- [1..sqrtSize]]
 		| 	x <- [0, sqrtSize..size-sqrtSize],
 			y <- [0, sqrtSize..size-sqrtSize]]
 
-getBlock :: [(Row,Column)]
-getBlock = let r = 1 `randInt` 9 in blocks' !! (nonIO r - 1)
+block :: Int -> [(Row,Column)]
+block = \r -> blocks' !! (r - 1)
 
-deleteBlocks :: Sudoku -> [(Row,Column)] -> Sudoku
-deleteBlocks s ((r,c):xs) = deleteBlock s (r,c) : deleteBlocks s xs 
+deleteBlock :: Sudoku -> [(Row,Column)] -> Sudoku
+deleteBlock s [] = s
+deleteBlock s (x:xs) = deleteBlock (deleteBlock' s x) xs
+	where 
+		deleteBlock' s (r,c) = eraseS s (r,c) 
 
-deleteBlock :: Sudoku -> (Row,Column) -> Sudoku
-deleteBlock s (r,c) = eraseS s (r,c)
+randomBlockInx :: IO [Int]
+randomBlockInx = do
+	g <- newStdGen
+	return $ nub $ take sqrtSize (randomRs (1,9) g)
+
+genBlankBlocks :: [Int] -> Sudoku -> Sudoku
+genBlankBlocks [] s = s
+genBlankBlocks (x:xs) s = let b = block (x :: Int) in
+		genBlankBlocks xs (deleteBlock s b)
+
+
+
+
+
