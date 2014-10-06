@@ -147,7 +147,8 @@ genBlankBlocks [] s = s
 genBlankBlocks (x:xs) s = let b = block (x :: Int) in
 		genBlankBlocks xs (deleteBlock s b)
 
-
-
-
-
+testIO :: IO ()
+testIO = do
+	s <- genSud
+	r <- randomBlockInx
+	showSudoku $ genBlankBlocks r (fst $ s)
