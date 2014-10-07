@@ -11,6 +11,14 @@ import Data.List
 -- Crossed Sudoku
 -- Extra constraints: Diagonals need to be unique too
 
+crossChecks :: ConstraintsFunctions
+crossChecks = inDiagonal : normalSChecks 
+
+crossfreeFunctions = freeInDiagonal1 : freeInDiagonal2: normalfreeFunctions
+crossConstraints = crossConstraint : normalSConstraints
+crossConstraint s = and $ [diagonalInjective True s (r,c) | r <- positions, c <- positions] ++ 
+                          [diagonalInjective False s (r,c) | r <- positions, c <- positions]
+
 -- Values in the diagonals
 diagonal1 s (r,c) = [ s (r',c') | c' <- positions, r' <- positions, c' == r' ]
 diagonal2 s (r,c) = [ s (r',c') | c' <- positions, r' <- positions, c' + r' == 10 ]
@@ -19,12 +27,7 @@ freeInDiagonal1 s (r,c) = freeInSeq $ diagonal1 s (r,c)
 freeInDiagonal2 s (r,c) = freeInSeq $ diagonal2 s (r,c)
 
 freeAtPos3 :: Sudoku -> (Row,Column) -> [Value]
-freeAtPos3 s (r,c) = 
-  (freeInRow s r) 
-   `intersect` (freeInColumn s c) 
-   `intersect` (freeInSubgrid s (r,c)) 
-   `intersect` (freeInDiagonal1 s (r,c))
-   `intersect` (freeInDiagonal2 s (r,c))
+freeAtPos3 s (r,c) = freeAtPos' s (r,c) crossfreeFunctions
    
 diagonalInjective :: Bool -> Sudoku -> (Row,Column) -> Bool
 diagonalInjective b s (r,c) = injective $ vs b
@@ -32,39 +35,26 @@ diagonalInjective b s (r,c) = injective $ vs b
    vs True = filter (/= 0) (diagonal1 s (r,c))
    vs False = filter (/= 0) (diagonal2 s (r,c))
    
-consistent3 s  = consistent s && and (
-    [diagonalInjective True s (r,c) | r <- positions, c <- positions] ++ 
-    [diagonalInjective False s (r,c) | r <- positions, c <- positions] )
+consistent3 s  = consistent' s crossConstraints
+    
     
 extendNode3 :: Node -> Constraint -> [Node]
-extendNode3 (s,constraints) (r,c,vs) = 
-   [(extend s ((r,c),v),
-     sortBy length3rd $ 
-         prune3 (r,c,v) constraints) | v <- vs ]
+extendNode3 = extendNode' crossChecks
          
 prune3 :: (Row,Column,Value) -> [Constraint] -> [Constraint]
-prune3 _ [] = []
-prune3 (r,c,v) ((x,y,zs):rest)
-  | r == x = (x,y,zs\\[v]) : prune3 (r,c,v) rest
-  | c == y = (x,y,zs\\[v]) : prune3 (r,c,v) rest
-  | sameblock (r,c) (x,y) = (x,y,zs\\[v]) : prune3 (r,c,v) rest
-  | inDiagonal (r,c) (x,y) = (x,y,zs\\[v]) : prune3 (r,c,v) rest
-  | otherwise = (x,y,zs) : prune3 (r,c,v) rest
+prune3 = prune' crossChecks crossChecks
   
 inDiagonal (r,c) (x,y) = (x + y == 10 && r + c == 10) ||
                          (x == y && r == c)
                          
 initNode3 :: Grid -> [Node]
-initNode3 gr = let s = grid2sud gr in 
-               if (not . consistent3) s then [] 
-               else [(s, constraints s)]
+initNode3 gr = initNode' gr crossConstraints [freeAtPos3]
                
 solveNs3 :: [Node] -> [Node]
 solveNs3 = search succNode3 solved 
 
 succNode3 :: Node -> [Node]
-succNode3 (s,[]) = []
-succNode3 (s,p:ps) = extendNode3 (s,ps) p 
+succNode3 = succNode' crossChecks
 
 -- Generating
 minimalize3 :: Node -> [(Row,Column)] -> Node

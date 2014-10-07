@@ -18,8 +18,6 @@ runSpec = hspec specSudoku
 specSudoku :: Spec
 specSudoku = do
   describe "Normal Sudoku" $ do
-   -- it "An empty grid should throw an exception" $ do
-       -- shouldThrow anyException >>= (sud2grid (grid2sud [[]])) 
     it "A random Grid with duplicates should be be an invalid Sudoku" $ do
         g <- getRandomUnvalidGrid
         let s = consistent (grid2sud g)
@@ -36,8 +34,7 @@ specSudoku = do
     it "A minimal Sudoku should have always one solution" $ do
         r <- genRandomSudoku
         s <- genProblem r
-        let q = uniqueSol s
-        shouldBe q True
+        uniqueSol s `shouldBe` True
         
 -- Create a random grid which can not be a valid Sudoku
 getRandomUnvalidGrid :: IO Grid
@@ -54,25 +51,46 @@ getRandomUnvalidGrid = getRandomGrid2 9
                         x <- getRandomInt 8 -- Makes sure there are doubles
                         xs <- getRandomGrid' (n-1)
                         return (x:xs)
+ 
+-- Create multiple random Sudokus
+genRandomSudokus :: Int -> IO [Node]
+genRandomSudokus 0 = return []
+genRandomSudokus n = do
+		x <- genRandomSudoku
+		xs <- genRandomSudokus (n-1)
+		return (x:xs)                        
+
                
 ------- Exercise 2 -------
 -- As the assignment suggests, we need to check two things:
 -- If the problem is solvable and has one solution
 -- Time spent: 30/ 45  minutes
-testSolvable :: Sudoku -> Bool
-testSolvable s = uniqueSol (s, constraints s)
+testIfUnique :: Sudoku -> Bool
+testIfUnique s = uniqueSol (s, constraints s)
 
 -- If the problem with any of the erased positions has more than one unique solution the original Sudoku was not minimal
 -- This computing time is quite long, just so you know it does work only takes some time
-testUnique :: Sudoku -> Bool
-testUnique s = length (
+testUniqueAfterDelete :: Sudoku -> Bool
+testUniqueAfterDelete s = length (
                 filter (==True)
-                (map testSolvable 
+                (map testIfUnique 
                 [eraseS s (r,c) | r <- positions, c <- positions, s (r,c) /= 0]) -- all the Sudoku s with one positions erased
                 ) == 0
-                
+
+-- Both the properties
 testMinimal :: Sudoku -> Bool
-testMinimal s = testSolvable s && testUnique s
+testMinimal s = testIfUnique s && testUniqueAfterDelete s
+
+-- Formal specification
+minimalHspec :: Spec
+minimalHspec = do 
+        describe "Minimal Sudoku" $ do
+            it "A minimal Sudoku has a unique solution" $ do
+                c <- createRandomSudoku
+                testIfUnique c `shouldBe` True
+            it "A minimal Sudoku will not be minimal after erasing one field" $ do
+                c <- createRandomSudoku
+                testUniqueAfterDelete c `shouldBe` True
 
 -- Create a random unsolved Sudoku
 createRandomSudoku :: IO Sudoku
@@ -81,6 +99,7 @@ createRandomSudoku = do
                      p <- genProblem r
                      return $ fst p
       
+-- For debugging
 testProperties :: IO Bool      
 testProperties = createRandomSudoku >>= return.testMinimal
 
@@ -137,7 +156,52 @@ example5Empty = showRandomSudoku $ randomBlocks 5 []
        
 -- For debugging purposes
 fullGrid :: Grid                 
-fullGrid = replicate 9 [1..9]                            
+fullGrid = replicate 9 [1..9]   
+
+----- Since we did this part apart, here is another way of deleting random blocks
+----- You don't have to grade it since it does the same as above but would be a bit of a shame to throw it away..
+genSud :: IO Node
+genSud = do
+		[r] <- rsolveNs [emptyN]
+		s <- genProblem r
+		return s
+        
+sqrtSize :: Int
+sqrtSize = 3 -- size of the blocks
+
+size :: Int
+size = (*) sqrtSize sqrtSize
+
+blocks' :: [[(Row,Column)]]
+blocks' = [[(x + i , y +j ) | i <- [1..sqrtSize], j <- [1..sqrtSize]]
+		| 	x <- [0, sqrtSize..size-sqrtSize],
+			y <- [0, sqrtSize..size-sqrtSize]]
+
+block :: Int -> [(Row,Column)]
+block = \r -> blocks' !! (r - 1)
+
+deleteBlock' :: Sudoku -> [(Row,Column)] -> Sudoku
+deleteBlock' s [] = s
+deleteBlock' s (x:xs) = deleteBlock' (deleteBlock'' s x) xs
+	where 
+		deleteBlock'' s (r,c) = eraseS s (r,c) 
+
+randomBlockInx :: IO [Int]
+randomBlockInx = do
+	g <- newStdGen
+	return $ nub $ take sqrtSize (randomRs (1,9) g)
+
+genBlankBlocks :: [Int] -> Sudoku -> Sudoku
+genBlankBlocks [] s = s
+genBlankBlocks (x:xs) s = let b = block (x :: Int) in
+		genBlankBlocks xs (deleteBlock' s b)
+
+testIO :: IO ()
+testIO = do
+	s <- genSud
+	r <- randomBlockInx
+	showSudoku $ genBlankBlocks r (fst $ s)
+                        
 ------- Exercise 4 & Exercise 5 -------
 
 ---- See SModified.hs ----

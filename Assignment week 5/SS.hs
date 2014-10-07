@@ -8,6 +8,71 @@ type Column = Int
 type Value  = Int
 type Grid   = [[Value]]
 
+-- We created new types and new functions so it would be easier to extend the normal Sudokus with new ones
+-- We only partly finished it...
+normalfreeFunctions :: [Sudoku -> (Row, Column) -> [Value]]
+normalfreeFunctions = [freeInRow, freeInColumn,freeInSubgrid]
+
+type ConstraintsFunctions = [(Row,Column) -> (Row,Column) -> Bool]
+type FreeFunctions = [Sudoku -> (Row,Column) -> [Value]] 
+
+-- The normal checks in prune for a Sudoku
+normalSChecks :: ConstraintsFunctions
+normalSChecks = [sameblock, 
+                           (\(r,c) (x,y) -> x == r),
+                           (\(r,c) (x,y) -> y == c)
+                           ] 
+                           
+-- The normal constraints of a Sudoku to still be consistent
+normalSConstraints :: [Sudoku -> Bool]
+normalSConstraints = [sConstraints, sConstraints2, sConstraints3]
+    where
+        sConstraints s = and $ [ rowInjective s r |  r <- positions ]
+        sConstraints2 s = and $ [ colInjective s c |  c <- positions ] 
+        sConstraints3 s = and $ [subgridInjective s (r,c) | r <- [1,4,7], c <- [1,4,7]] 
+
+freeAtPos' :: Sudoku -> (Row, Column) -> FreeFunctions -> [Value]
+freeAtPos' s (r,c) fs = freeAtPos s (r,c) ++ free s (r,c) fs
+    where
+        free _ _ [] = []
+        free s (r,c) (f:fs) = f s(r,c) `intersect` free s (r,c) fs
+        
+consistent' :: Sudoku -> [Sudoku -> Bool] -> Bool
+consistent' s fs = and $cons s fs
+    where
+        cons _ [] = [True]
+        cons s' (x :xs) = x s' : cons s' xs
+        
+extendNode' :: ConstraintsFunctions-> Node -> Constraint ->  [Node]
+extendNode' fs (s,constraints) (r,c,vs) = 
+   [(extend s ((r,c),v),
+     sortBy length3rd $ 
+         prune' fs fs (r,c,v) constraints) | v <- vs ]
+         
+prune' :: ConstraintsFunctions -> ConstraintsFunctions -> (Row, Column, Value) -> [Constraint] -> [Constraint]
+prune' _ _ _ []= []
+prune' [] ff(r,c,v) ((x,y,zs):rest) = (x,y,zs) : prune' ff ff (r,c,v) rest 
+prune' (f:fs) ff (r,c,v) ((x,y,zs):rest) | f (r,c) (x,y) = (x,y,zs\\[v]) : prune' ff ff (r,c,v) rest 
+                                        | otherwise = prune' fs ff (r,c,v) ((x,y,zs):rest) 
+                                        
+initNode' :: Grid -> [Sudoku -> Bool] -> [Sudoku -> (Row, Column) -> [Value]] -> [Node]
+initNode' gr fs fs2 = let s = grid2sud gr in 
+              if (not $ consistent' s fs) then [] 
+              else [(s, constraints' s fs2)] 
+              
+constraints' :: Sudoku -> FreeFunctions -> [Constraint] 
+constraints' s fs = sortBy length3rd 
+    [(r,c, freeAtPos' s (r,c) fs) | 
+                       (r,c) <- openPositions s ]
+                       
+solveNs' :: ConstraintsFunctions -> [Node] -> [Node]
+solveNs' fs = search (succNode' fs) solved
+
+succNode' :: ConstraintsFunctions -> Node -> [Node]
+succNode' _ (s,[]) = []
+succNode' fs (s,p:ps) = extendNode' fs (s,ps) p 
+        
+-- Below is the same as given in the assignment, only with using the general functions in the old ones
 positions, values :: [Int]
 positions = [1..9]
 values    = [1..9] 
@@ -70,12 +135,12 @@ subGrid s (r,c) =
 freeInSeq :: [Value] -> [Value]
 freeInSeq seq = values \\ seq 
 
-freeInRow :: Sudoku -> Row -> [Value]
-freeInRow s r = 
+freeInRow :: Sudoku -> (Row, Column) -> [Value]
+freeInRow s (r,_) = 
   freeInSeq [ s (r,i) | i <- positions  ]
 
-freeInColumn :: Sudoku -> Column -> [Value]
-freeInColumn s c = 
+freeInColumn :: Sudoku -> (Row,Column) -> [Value]
+freeInColumn s (_,c) = 
   freeInSeq [ s (i,c) | i <- positions ]
 
 freeInSubgrid :: Sudoku -> (Row,Column) -> [Value]
@@ -83,10 +148,10 @@ freeInSubgrid s (r,c) = freeInSeq (subGrid s (r,c))
 
 freeAtPos :: Sudoku -> (Row,Column) -> [Value]
 freeAtPos s (r,c) = 
-  (freeInRow s r) 
-   `intersect` (freeInColumn s c) 
+  (freeInRow s (r,c)) 
+   `intersect` (freeInColumn s (r,c)) 
    `intersect` (freeInSubgrid s (r,c)) 
-
+     
 injective :: Eq a => [a] -> Bool
 injective xs = nub xs == xs
 
@@ -103,13 +168,7 @@ subgridInjective s (r,c) = injective vs where
    vs = filter (/= 0) (subGrid s (r,c))
 
 consistent :: Sudoku -> Bool
-consistent s = and $
-               [ rowInjective s r |  r <- positions ]
-                ++
-               [ colInjective s c |  c <- positions ]
-                ++
-               [ subgridInjective s (r,c) | 
-                    r <- [1,4,7], c <- [1,4,7]]
+consistent s = consistent' s normalSConstraints
 
 extend :: Sudoku -> ((Row,Column),Value) -> Sudoku
 extend = update
@@ -128,67 +187,36 @@ solved  :: Node -> Bool
 solved = null . snd
 
 extendNode :: Node -> Constraint -> [Node]
-extendNode (s,constraints) (r,c,vs) = 
-   [(extend s ((r,c),v),
-     sortBy length3rd $ 
-         prune (r,c,v) constraints) | v <- vs ]
+extendNode = extendNode' normalSChecks
 
 length3rd :: (a,b,[c]) -> (a,b,[c]) -> Ordering
 length3rd (_,_,zs) (_,_,zs') = 
   compare (length zs) (length zs')
 
 prune :: (Row,Column,Value) -> [Constraint] -> [Constraint]
-prune _ [] = []
-prune (r,c,v) ((x,y,zs):rest)
-  | r == x = (x,y,zs\\[v]) : prune (r,c,v) rest
-  | c == y = (x,y,zs\\[v]) : prune (r,c,v) rest
-  | sameblock (r,c) (x,y) = 
-        (x,y,zs\\[v]) : prune (r,c,v) rest
-  | otherwise = (x,y,zs) : prune (r,c,v) rest
-
+prune = prune' normalSChecks normalSChecks
+    
 sameblock :: (Row,Column) -> (Row,Column) -> Bool
 sameblock (r,c) (x,y) = bl r == bl x && bl c == bl y 
-
-initNode :: Grid -> [Node]
-initNode gr = let s = grid2sud gr in 
-              if (not . consistent) s then [] 
-              else [(s, constraints s)]
-
+              
+initNode gr = initNode' gr normalSConstraints [freeAtPos]                       
+              
 openPositions :: Sudoku -> [(Row,Column)]
 openPositions s = [ (r,c) | r <- positions,  
                             c <- positions, 
                             s (r,c) == 0 ]
 
 constraints :: Sudoku -> [Constraint] 
-constraints s = sortBy length3rd 
-    [(r,c, freeAtPos s (r,c)) | 
-                       (r,c) <- openPositions s ]
-
-data Tree a = T a [Tree a] deriving (Eq,Ord,Show)
-
-exmple1 = T 1 [T 2 [], T 3 []]
-exmple2 = T 0 [exmple1,exmple1,exmple1]
-
-grow :: (node -> [node]) -> node -> Tree node 
-grow step seed = T seed (map (grow step) (step seed))
-
-count :: Tree a -> Int 
-count (T _ ts) = 1 + sum (map count ts)
-
-search :: (node -> [node]) 
-       -> (node -> Bool) -> [node] -> [node]
+constraints s = constraints' s normalfreeFunctions
+         
+search :: (node -> [node]) -> (node -> Bool) -> [node] -> [node]
 search children goal [] = []
 search children goal (x:xs) 
   | goal x    = x : search children goal xs
-  | otherwise = search children goal 
-                                ((children x) ++ xs)
+  | otherwise = search children goal ((children x) ++ xs)
 
-solveNs :: [Node] -> [Node]
-solveNs = search succNode solved 
-
-succNode :: Node -> [Node]
-succNode (s,[]) = []
-succNode (s,p:ps) = extendNode (s,ps) p 
+solveNs = solveNs' normalSChecks
+succNode = succNode' normalSChecks 
 
 solveAndShow :: Grid -> IO()
 solveAndShow gr = solveShowNs (initNode gr)
@@ -252,7 +280,7 @@ example5 = [[1,0,0,0,0,0,0,0,0],
             [0,0,0,0,0,0,0,0,9]]
 
 emptyN :: Node
-emptyN = (\ _ -> 0,constraints (\ _ -> 0))
+emptyN = (\ _ -> 0,constraints' (\ _ -> 0) [])
 
 getRandomInt :: Int -> IO Int
 getRandomInt n = getStdRandom (randomR (0,n))

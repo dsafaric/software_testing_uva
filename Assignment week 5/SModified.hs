@@ -81,6 +81,14 @@ showGrid2 [as,bs,cs,ds,es,fs,gs,hs,is] =
 showSudoku2 :: Sudoku -> IO()
 showSudoku2 = showGrid2 . sud2grid
 
+nrcChecks :: ConstraintsFunctions
+nrcChecks = sameblock2: normalSChecks 
+
+nrcfreeFunctions = freeInSubgrid2: normalfreeFunctions
+
+nrcConstraint s = and $ [subgrid2Injective s (r,c) | r <- [2,6], c <- [2,6]]
+nrcConstraints = nrcConstraint : normalSConstraints
+
 -- The extra blocks
 bl2 :: Int -> [Int]
 bl2 x = concat $ filter (elem x) blocks2
@@ -96,7 +104,7 @@ freeInSubgrid2 s (r,c) = freeInSeq (subGrid2 s (r,c))
 
 -- The same as freeAtPos but intersect it with the extra sub grid
 freeAtPos2 :: Sudoku -> (Row,Column) -> [Value]
-freeAtPos2 s (r,c) = freeAtPos s (r,c) `intersect` (freeInSubgrid2 s (r,c))
+freeAtPos2 s (r,c) = freeAtPos' s (r,c) nrcfreeFunctions
    
 -- New injective for the new sub grid
 subgrid2Injective :: Sudoku -> (Row,Column) -> Bool
@@ -105,17 +113,13 @@ subgrid2Injective s (r,c) = injective vs where
    
 -- Consistent now iff the consistent first and with the sub grid
 consistent2 :: Sudoku -> Bool
-consistent2 s = consistent s && (and [ subgrid2Injective s (r,c) | r <- [2,6], c <- [2,6]])
+consistent2 s = consistent' s nrcConstraints
+
+
                     
 -- Also the same as before, only with another if case, namely for the the new sub grid
 prune2 :: (Row,Column,Value) -> [Constraint] -> [Constraint]
-prune2 _ [] = []
-prune2 (r,c,v) ((x,y,zs):rest)
-  | r == x = (x,y,zs\\[v]) : prune2 (r,c,v) rest
-  | c == y = (x,y,zs\\[v]) : prune2 (r,c,v) rest
-  | sameblock (r,c) (x,y)  = (x,y,zs\\[v]) : prune2 (r,c,v) rest
-  | sameblock2 (r,c) (x,y) = (x,y,zs\\[v]) : prune2 (r,c,v) rest -- New
-  | otherwise = (x,y,zs) : prune2 (r,c,v) rest
+prune2 = prune' nrcChecks nrcChecks
   
 -- Check for values in the new subgrid 
 sameblock2 :: (Row,Column) -> (Row,Column) -> Bool
@@ -123,20 +127,13 @@ sameblock2 (r,c) (x,y) = bl2 r == bl2 x && bl2 c == bl2 y
 
 -- All below is basically the same as before only with the new functions to solve NRC Sudoku s
 initNode2 :: Grid -> [Node]
-initNode2 gr = let s = grid2sud gr in 
-               if (not . consistent2) s then [] 
-               else [(s, constraints2 s)]
+initNode2 gr = initNode' gr nrcConstraints [freeAtPos2]  
 
 constraints2 :: Sudoku -> [Constraint] 
-constraints2 s = sortBy length3rd 
-    [(r,c, freeAtPos2 s (r,c)) | 
-                       (r,c) <- openPositions s ]
+constraints2 s = constraints' s nrcfreeFunctions
                        
 extendNode2 :: Node -> Constraint -> [Node]
-extendNode2 (s,constraints) (r,c,vs) = 
-   [(extend s ((r,c),v),
-     sortBy length3rd $ 
-         prune2 (r,c,v) constraints) | v <- vs ]
+extendNode2 = extendNode' nrcChecks
  
 showNode2 :: Node -> IO()
 showNode2 = showSudoku2 . fst
@@ -145,8 +142,7 @@ solveNs2 :: [Node] -> [Node]
 solveNs2 = search succNode2 solved 
 
 succNode2 :: Node -> [Node]
-succNode2 (s,[]) = []
-succNode2 (s,p:ps) = extendNode2 (s,ps) p 
+succNode2 = succNode' nrcChecks
 
 solveAndShow2 :: Grid -> IO()
 solveAndShow2 gr = solveShowNs2 (initNode2 gr)
