@@ -42,7 +42,7 @@ binToExp' (x:xs) n = if (x == 1) then 2^(n-1): binToExp' xs (n-1) else binToExp'
 
 
 -- Some test, using the tuple (x,y,z) to feed the value
- testList :: [(Integer,Integer,Integer)]
+--testList :: [(Integer,Integer,Integer)]
 getNum = map (\(x,y,n) -> x^y) testList
 testList = zipWith3 (\x y z -> (x,y,z)) [800..840] [5..25] [3..23]
 test1 = map (\(x, y, n)-> (expM x y n) == (exM' x y n)) testList
