@@ -16,17 +16,20 @@ carmichael = [ (6*k+1)*(12*k+1)*(18*k+1) |
 --exM :: Integer -> Integer -> Integer -> Integer
 --exM x y m = x
 
-maxBaseTwo m n -- 40 0
-	| (2^n) <= m = maxBaseTwo m (n+1) -- 2^0 < 40, 2^1 < 40, 2^3 < 40, 2^4 < 40, 2^5(32) < 40
-	| otherwise = 2^(n-1) -- 2^(6-1) = 32
+--maxBaseTwo m n -- 40 0
+--	| (2^n) <= m = maxBaseTwo m (n+1) -- 2^0 < 40, 2^1 < 40, 2^3 < 40, 2^4 < 40, 2^5(32) < 40
+--	| otherwise = 2^(n-1) -- 2^(6-1) = 32
 
-
+-- bit games. less cpu per operation. also O(log n)
 modExp :: Integer -> Integer -> Integer -> Integer
 modExp b 0 m = 1
-modExp b e m = t * modExp ((b * b) `mod` m) (shiftR e 1) m `mod` m
-  		   where t = if testBit e 0 then b `mod` m else 1
+modExp b e m = t * modExp ((b * b) `mod` m) (shiftR e 1) m `mod` m -- shiftR by 1 == div by 2!
+  		   where 
+  		   	t = if testBit e 0 
+  		   		then b `mod` m else 1 -- is first bit equal to 1? mod!.. nope? number is 0. return 1!
 
--- x^n % m
+-- similar like above.. more clear... divide problem to smaller ones. log << smaller/shorter
+-- x^n % m, time complexity O(log n)
 modPow :: Integer -> Integer -> Integer -> Integer
 modPow x n m
 	| n == 0 = 1
