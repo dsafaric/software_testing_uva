@@ -5,6 +5,7 @@ import Data.List
 import System.Random
 import Week6
 import Data.Bits
+import Control.Monad
 
 carmichael :: [Integer]
 carmichael = [ (6*k+1)*(12*k+1)*(18*k+1) | 
@@ -62,7 +63,7 @@ modPow x n m
 5
 (0.00 secs, 0 bytes)
 
-==== equal! we can see a different. ! expM is slower. let's make more test
+==== equal! we can see a different. ! expM is slightly slower. let's make more test
 ==== test 3
 > expM 5 m8 7
  ...... 
@@ -71,7 +72,6 @@ no response for up to 5 minutes
 > modPow 5 m8 7
 5
 (0.00 secs, 0 bytes)
-
 ==== let's change some parameters
 ==== test 4
 *Lab6> expM m7 m7 5
@@ -81,7 +81,7 @@ no response for up to 5 minutes
 *Lab6> modPow m7 m7 5
 3
 (0.00 secs, 0 bytes)
-
+=== expM <<<< slower then modPow
 === let's make really big parameters
 *Lab6> expM m25 m25 m20
 .........
@@ -103,3 +103,27 @@ no response for up to 5 minutes
 (1.64 secs, 182903928 bytes)
 
 -}
+
+{-
+-- Exec. 3
+-}
+composites :: [Integer]
+composites = filter (\n -> isPrime n == False) [1..]
+
+{-
+-- Exec. 4
+the least number found is 4
+if k=1, it is easily find fool number
+when increasing k [1..n] it takes more time to find a number, 
+and usually the number that was found is bigger
+-}
+
+--minFool k = filterM (\n -> (primeF k n)) composites
+minFool :: Int -> IO Integer
+minFool k = minFool' k composites
+minFool' :: Int -> [Integer] -> IO Integer
+minFool' k (c:cs) = do 
+					isFermatPrime <- (primeF k c)
+					if isFermatPrime
+					then return c
+					else minFool' k cs
