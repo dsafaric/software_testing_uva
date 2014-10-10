@@ -28,7 +28,7 @@ exMod x y m | even y = multM e e m
 
 -- Exercise 2
 
-randInt :: Integer -> Integer -> IO Integer
+randInt :: Int -> Int -> IO Int
 randInt = \x -> \ y -> getStdRandom (randomR (x,y)) 
 
 expM' = hspec $ do
@@ -63,9 +63,26 @@ testProp' f = do
 qTestProp' :: (Ord a, Num a2, Num a1, Num a, Eq a2, Eq a1) =>
      (a1 -> a2 -> a -> a) -> a1 -> a2 -> a -> Bool
 qTestProp' f x y m	| x == 0 || y == 0 || m == 0 	= True
-					| otherwise 					= f (x^2) (y^2) (m^2) < (m^2)
+					| otherwise 	= f (x^2) (y^2) (m^2) < (m^2)
 
 qTestProp1 = quickCheckWith stdArgs {maxSuccess = 5000} (qTestProp' exMod)  
 qTestProp2 = quickCheckWith stdArgs {maxSuccess = 5000} (qTestProp' expM)
 
 -- Exercise 3
+
+composite :: [Integer]
+composite = sieve' [1..]
+
+sieve' :: [Integer] -> [Integer]
+sieve' (n:ns) = n : sieve' (filter (\ m -> isPrime m == False) ns)
+
+testPropCom :: Bool
+testPropCom  	| n > 0 = length (filter (==True) (map (isPrime) $ take n composite)) == 0
+				| otherwise = False
+		where n = nonIO $ randInt 0 1000	-- a better approach would be if we could
+							-- define the min int value of the quickcheck test
+
+testPropComQ = quickCheckWith stdArgs {maxSuccess = 1000} testPropCom
+
+
+
