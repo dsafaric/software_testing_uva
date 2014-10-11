@@ -91,6 +91,23 @@ primeF k n = do
       then return False 
       else primeF (k-1) n
 
+primeMR :: Int -> Integer -> IO Bool
+primeMR _ 2 = return True
+primeMR 0 _ = return True
+primeMR k n = let 
+   (r,s) = decomp (n-1) 
+   f = \ x -> takeWhile (/= 1) 
+       (map (\ j -> exMod x (2^j*s) n)  [0..r])
+  in 
+   do 
+    a <- randomRIO (1, n-1) :: IO Integer
+    if exMod a (n-1) n /= 1 
+      then return False 
+      else 
+        if exMod a s n /= 1 && last (f a) /= (n-1) 
+          then return False
+          else primeMR (k-1) n
+
 testPrimarity :: Integer -> (Int -> Integer -> IO Bool) -> Int -> [Integer] -> IO () 
 testPrimarity n f k [] 		= print ("Test done -> Number of fails: " ++ show n)
 testPrimarity n f k (x:xs) 	= do
@@ -124,11 +141,31 @@ testPropC = do
 
 testPropMR :: IO ()
 testPropMR = do
-	k <- randInt 1 3
-	n <- randInt 20 1000
-	testPrimarity 0 primeMR k $ take n carmichael
+	--k <- randInt 1 3
+	--n <- randInt 20 30
+	testPrimarity 0 primeMR 1 $ take 10 carmichael
 
--- getting a strange bus error, probably because:
-	-- a pointer to deallocated area 
+-- getting a strange error regarding a bus error:
+	-- either a pointer to deallocated 
 	-- or overflow of the buffer
 
+-- Exercise 7
+-- time spent: 45 min 
+
+mersenne' :: Int -> Int -> [Integer] -> IO ()
+mersenne' _ _ [] = print ("List of primes empty")
+mersenne' c k (x:xs) = do
+	n <- primeMR k (2^x - 1)
+	if n 
+		then do
+			print ("Marsenne's " ++ show c ++ " number: " ++ show (2^x - 1))
+			mersenne' (c+1) k xs
+		else mersenne' c k xs
+
+testPropMM :: IO ()
+testPropMM = do
+	k <- randInt 1 3
+	n <- randInt 10 1000
+	mersenne' 0 k $ take n primes
+
+-- the largest Mersenne's number discovered was the 19th: 2^4423 - 1
