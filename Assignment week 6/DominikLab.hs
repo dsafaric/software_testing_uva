@@ -1,6 +1,6 @@
 -- Lab4Hs.hs
 
-module Lab4Hs
+module Lab6Hs
 
 where
 
@@ -9,8 +9,10 @@ import Data.List
 import System.Random
 import Test.QuickCheck
 import System.IO.Unsafe
+import Control.Monad
 import Test.Hspec
 import Week6
+import Lab6
 
 -- write a function that does modular exponentian of x^y in polynomial time, by repeadetly squering
 	-- module M
@@ -46,11 +48,8 @@ exMod' = hspec $ do
 testProp = 	if e < n then "expM has performed faster -> " ++ show e
 			else "exMod has performed faster -> " ++ show n
 		where 
-			e = nonIO $ testProp' expM'
-			n = nonIO $ testProp' exMod'
-
-nonIO :: IO a -> a
-nonIO = \x -> unsafePerformIO x
+			e = unsafePerformIO $ testProp' expM'
+			n = unsafePerformIO $ testProp' exMod'
 
 testProp' f = do
 	s <- getCurrentTime
@@ -63,26 +62,36 @@ testProp' f = do
 qTestProp' :: (Ord a, Num a2, Num a1, Num a, Eq a2, Eq a1) =>
      (a1 -> a2 -> a -> a) -> a1 -> a2 -> a -> Bool
 qTestProp' f x y m	| x == 0 || y == 0 || m == 0 	= True
-					| otherwise 	= f (x^2) (y^2) (m^2) < (m^2)
+					| otherwise 					= f (x^2) (y^2) (m^2) < (m^2)
 
 qTestProp1 = quickCheckWith stdArgs {maxSuccess = 5000} (qTestProp' exMod)  
 qTestProp2 = quickCheckWith stdArgs {maxSuccess = 5000} (qTestProp' expM)
 
 -- Exercise 3
-
+-- time spent: 45 min
 composite :: [Integer]
-composite = sieve' [1..]
+composite = sieve' [4..]
 
 sieve' :: [Integer] -> [Integer]
-sieve' (n:ns) = n : sieve' (filter (\ m -> isPrime m == False) ns)
+sieve' ns = (filter (\ m -> isPrime m == False) ns)
 
-testPropCom :: Bool
-testPropCom  	| n > 0 = length (filter (==True) (map (isPrime) $ take n composite)) == 0
-				| otherwise = False
-		where n = nonIO $ randInt 0 1000	-- a better approach would be if we could
-							-- define the min int value of the quickcheck test
+-- Exercise 4
+-- time spent: 45 min
 
-testPropComQ = quickCheckWith stdArgs {maxSuccess = 1000} testPropCom
+testFermat' :: Int -> [Integer] -> IO Integer
+testFermat' k (x:xs) = do
+    p <- primeF k x
+    if p then testFermat' k xs
+      else return x
 
+testFermat :: Int -> IO [Char]
+testFermat k = do
+	c <- testFermat' k composite
+	return $ "Failed at composite: " ++ show c 
 
+testPropF = do
+	r <- getStdRandom (randomR (1,10))
+	testFermat r
 
+-- Exercise 5
+-- time spent: min
