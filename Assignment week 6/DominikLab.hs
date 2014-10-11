@@ -75,10 +75,6 @@ composite = sieve' [4..]
 sieve' :: [Integer] -> [Integer]
 sieve' ns = (filter (\ m -> isPrime m == False) ns)
 
-composites :: [Integer]
-composites = composites' [4..]
-composites' (n:ns) = n : composites' (filter (\ m -> head (factors m) /= m ) ns)
-
 -- Exercise 4
 -- time spent: 45 min
 
@@ -129,7 +125,6 @@ testPropF = do
 -- Exercise 5
 -- time spent: 10 min  
 
-
 testPropC :: IO ()
 testPropC = do
 	k <- randInt 1 3
@@ -169,3 +164,7 @@ testPropMM = do
 	mersenne' 0 k $ take n primes
 
 -- the largest Mersenne's number discovered was the 19th: 2^4423 - 1
+
+
+
+
