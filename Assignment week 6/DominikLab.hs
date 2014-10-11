@@ -62,7 +62,7 @@ testProp' f = do
 qTestProp' :: (Ord a, Num a2, Num a1, Num a, Eq a2, Eq a1) =>
      (a1 -> a2 -> a -> a) -> a1 -> a2 -> a -> Bool
 qTestProp' f x y m	| x == 0 || y == 0 || m == 0 	= True
-			| otherwis		 	= f (x^2) (y^2) (m^2) < (m^2)
+					| otherwise 					= f (x^2) (y^2) (m^2) < (m^2)
 
 qTestProp1 = quickCheckWith stdArgs {maxSuccess = 5000} (qTestProp' exMod)  
 qTestProp2 = quickCheckWith stdArgs {maxSuccess = 5000} (qTestProp' expM)
@@ -75,6 +75,10 @@ composite = sieve' [4..]
 sieve' :: [Integer] -> [Integer]
 sieve' ns = (filter (\ m -> isPrime m == False) ns)
 
+composites :: [Integer]
+composites = composites' [4..]
+composites' (n:ns) = n : composites' (filter (\ m -> head (factors m) /= m ) ns)
+
 -- Exercise 4
 -- time spent: 45 min
 
@@ -83,37 +87,48 @@ primeF _ 2 = return True
 primeF 0 _ = return True
 primeF k n = do
    a <- randomRIO (1, n-2) :: IO Integer
-   if (exMod a (n-1) n /= 1) 	-- function modified and exM replaced with exMod
+   if (exM a (n-1) n /= 1) 	-- function modified and exM replaced with exMod
       then return False 
       else primeF (k-1) n
 
-testFermat' :: Int -> [Integer] -> IO Integer 
-testFermat' k (x:xs) 	= do
-    p <- primeF k x
-    if p then testFermat' k xs
-      else return x
+testPrimarity :: Integer -> (Int -> Integer -> IO Bool) -> Int -> [Integer] -> IO () 
+testPrimarity n f k [] 		= print ("Test done -> Number of fails: " ++ show n)
+testPrimarity n f k (x:xs) 	= do
+    p <- f k x
+    if p 
+    	then do 
+    		print ("Failed composite: " ++ show x)
+      		testPrimarity (n+1) f k xs 
+      else 
+      	testPrimarity n f k xs
+      		
 
-testFermat :: Int -> [Integer] -> IO [Char]
-testFermat k [] = return "Failed: empty list"
-testFermat k xs = do
-	c <- testFermat' k xs 
-	return $ "Failed at composite: " ++ show c 
-
-testPropF :: IO [Char]
+testPropF :: IO ()
 testPropF = do
-	r <- getStdRandom (randomR (1,2))
-	testFermat r composite
+	k <- getStdRandom (randomR (1,3))
+	n <- getStdRandom (randomR (20,1000))
+	testPrimarity 0 primeF k $ take n composite
 
 -- Exercise 5
 -- time spent: 10 min  
--- the test did fail on 294409?
 
-testPropC' :: IO [Char]
-testPropC' = do
-	r <- randInt 1 3
-	n <- randInt 2 5
-	testFermat r $ take n carmichael 
+
+testPropC :: IO ()
+testPropC = do
+	k <- randInt 1 3
+	n <- randInt 1 10
+	testPrimarity 0 primeF k $ take n carmichael 
 
 -- Exercise 6
--- time spent: min
+-- time spent: 30 min
+
+testPropMR :: IO ()
+testPropMR = do
+	k <- randInt 1 3
+	n <- randInt 20 1000
+	testPrimarity 0 primeMR k $ take n carmichael
+
+-- getting a strange bus error, probably because:
+	-- a pointer to deallocated area 
+	-- or overflow of the buffer
 
