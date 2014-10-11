@@ -62,7 +62,7 @@ testProp' f = do
 qTestProp' :: (Ord a, Num a2, Num a1, Num a, Eq a2, Eq a1) =>
      (a1 -> a2 -> a -> a) -> a1 -> a2 -> a -> Bool
 qTestProp' f x y m	| x == 0 || y == 0 || m == 0 	= True
-					| otherwise 					= f (x^2) (y^2) (m^2) < (m^2)
+			| otherwise 			= f (x^2) (y^2) (m^2) < (m^2)
 
 qTestProp1 = quickCheckWith stdArgs {maxSuccess = 5000} (qTestProp' exMod)  
 qTestProp2 = quickCheckWith stdArgs {maxSuccess = 5000} (qTestProp' expM)
