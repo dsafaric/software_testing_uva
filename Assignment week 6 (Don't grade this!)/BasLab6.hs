@@ -1,4 +1,4 @@
-module Lab6
+module BasLab6
 
 where
 import Data.List
@@ -8,11 +8,11 @@ import Data.Time
 import Test.QuickCheck
 import System.IO.Unsafe
 import Control.Monad
-import Test.Hspec
-
+import Data.Bits
 
 ---- Assignment 1 ----
 -- Time spent :: 45 minutes
+---- We included 4 different versions, since we did this assignment separated. modExp is fastest, so you can only look at that one if you want to.
 exM' :: Integer -> Integer -> Integer -> Integer
 exM' x e n = let list = (findPowerOf2 e)
              in (product $ map (\exp -> exMsub x exp n) list) `mod` n
@@ -31,7 +31,33 @@ binary n | even n = (rem n 2) : (binary (div n 2))
          
 findPowerOf2 :: Integer -> [Integer]
 findPowerOf2 n = let list = zip [0..] (binary n)
-                 in map (\z -> 2^z) $ map fst $ filter (\(x,y) -> y == 1) list              
+                 in map (\z -> 2^z) $ map fst $ filter (\(x,y) -> y == 1) list     
+
+-- Another way of doing it:
+modExp :: Integer -> Integer -> Integer -> Integer
+modExp b 0 m = 1
+modExp b e m = t * modExp ((b * b) `mod` m) (shiftR e 1) m `mod` m -- shiftR by 1 == div by 2!
+  		   where 
+  		   	t = if testBit e 0 
+  		   		then b `mod` m else 1 -- is first bit equal to 1? mod!.. nope? number is 0. return 1!
+
+-- similar like above.. more clear... divide problem to smaller ones. log << smaller/shorter
+-- x^n % m, time complexity O(log n)
+modPow :: Integer -> Integer -> Integer -> Integer
+modPow x n m
+	| n == 0 = 1
+	| n `mod` 2 == 0 = (nOdd*nOdd) `mod` m
+	| otherwise = nEvn
+	where 
+		nOdd = modPow x (n `div` 2) m
+		nEvn = ((x `mod` m) * (modPow x (n-1) m)) `mod` m    
+
+-- And a third way:
+exMod :: Integer -> Integer -> Integer -> Integer
+exMod _ 0 _ = 1     
+exMod x y m | even y = multM e e m 
+            | otherwise = multM x (multM e e m) m
+  	where  e  = exMod x (y `div` 2) m        
 
 ---- Assignment 2 ----
 getRandomInt :: Integer -> Integer -> IO Integer
@@ -51,23 +77,32 @@ randomValues n = do
 compareExMs :: IO()    
 compareExMs = do	
         list <- randomValues 1000
-        e <- runningTime $ exM'' True list
-        n <- runningTime $ exM'' False list
-        if e < n then print $ "exM' has performed faster: " ++ show e
-        else print $ "exM has performed faster: " ++ show n
-         
+        a <- runningTime $ exM'' 1 list
+        b <- runningTime $ exM'' 2 list
+        c <- runningTime $ exM'' 3 list
+        d <- runningTime $ exM'' 4 list
+        e <- runningTime $ exM'' 5 list
+        print $ "exM': " ++ show a
+        print $ "modPow': " ++ show b
+        print $ "modExp': " ++ show c
+        print $ "exMod': " ++ show d
+        print $ "exM: " ++ show e      
          
 -- exM and exM' can only be compared if used in IO (otherwise it gives computing time 0.00)
-exM'' :: Bool -> [(Integer, Integer, Integer)] -> IO()
+exM'' :: Int -> [(Integer, Integer, Integer)] -> IO()
 exM'' b list = do 
         let m = map (exMCompare b) list
-        print m
+        print $ last m -- Just so the whole screen is not full
         
            
 -- Use the exM and exM' on a three tuple of values
-exMCompare :: Bool -> (Integer,Integer,Integer) -> Integer
-exMCompare b (x,y,z) | b =  exM' x y z
-                     | otherwise = exM x y z
+exMCompare :: Int -> (Integer,Integer,Integer) -> Integer
+exMCompare b (x,y,z) | b == 1 =  exM' x y z
+                     | b == 2 = modPow x y z
+                     | b == 3 = modExp x y z 
+                     | b == 4 = exMod x y z
+                     | b == 5 = exM x y z
+                     | otherwise = error "wrong enum"
 
 -- Get the running time of function f
 runningTime :: IO a -> IO Double
@@ -79,11 +114,15 @@ runningTime f = do
     
 
 qTestProp' :: (Integer -> Integer -> Integer -> Integer) -> Integer -> Integer -> Integer -> Bool
-qTestProp' f x y m	| x == 0 || y == 0 || m == 0 	= True
-                    | otherwise 			= f (x^2) (y^2) (m^2) < (m^2)
+qTestProp' f x y m	| x == 0 || y == 0 || m == 0 	= True                   -- No valid input
+                    | otherwise = f (x^2) (y^2) (m^2) == exM (x^2) (y^2) (m^2)
 
-qTestProp1 = quickCheckWith stdArgs {maxSuccess = 5000} (qTestProp' exM)  
-qTestProp2 = quickCheckWith stdArgs {maxSuccess = 5000} (qTestProp' exM') 
+-- Check for each of they have the same values as the known correct exM
+qTestProp1 = quickCheckWith stdArgs {maxSuccess = 5000} (qTestProp' exM')  
+qTestProp2 = quickCheckWith stdArgs {maxSuccess = 5000} (qTestProp' modExp) 
+qTestProp3 = quickCheckWith stdArgs {maxSuccess = 5000} (qTestProp' modPow) 
+qTestProp4 = quickCheckWith stdArgs {maxSuccess = 5000} (qTestProp' exMod) 
+
 
 ---- Assignment 3 ----
 -- Since there is no fast way of finding all primes, there is none for finding al composites
@@ -167,8 +206,13 @@ mersenne c k (x:xs) = do
 			mersenne (c+1) k xs
 		else mersenne c k xs
 
-testPropMM :: Int -> IO ()
-testPropMM k = mersenne 0 k $ take 1000 primes
+testMersenne :: Int -> IO ()
+testMersenne k = mersenne 0 k $ take 1000 primes
+
+-- Example tests
+t12 = testMersenne 1
+t13 = testMersenne 2
+t14 = testMersenne 5
 
 ---- Assignment BONUS ----
 
