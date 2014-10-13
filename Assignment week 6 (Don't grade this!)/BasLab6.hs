@@ -264,6 +264,7 @@ encryptExample m = do
         putStrLn $ "Decoding done by A after receiving message from B: " ++ show decode
         putStrLn $ "Translates to message: " ++ integerToMessage decode
       
+-- Use the same key (not very safe, but easier) to encrypt parts of a message separately 
 encryptMessages :: String -> IO()
 encryptMessages m = do 
         let spl = splitEvery 8 m
