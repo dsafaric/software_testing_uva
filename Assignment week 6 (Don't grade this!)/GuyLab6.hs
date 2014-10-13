@@ -127,3 +127,43 @@ minFool' k (c:cs) = do
 					if isFermatPrime
 					then return c
 					else minFool' k cs
+
+
+carmTest k = minFool' k carmichael
+
+testPrimeFCarmichael :: (Int -> Integer -> IO Bool) -> Integer -> Int -> [Integer] -> Int -> IO () 
+testPrimeFCarmichael f n k [] a 		= print ("Tests failed: " ++ show n ++ " out of " ++ show a)
+testPrimeFCarmichael f n k (x:xs) a 	= do
+    prime <- f k x
+    if prime
+    	then do 
+    		print ("Falsely labelled prime: " ++ show x)
+      		testPrimeFCarmichael f (n+1) k xs a
+      else 
+      	testPrimeFCarmichael f n k xs a
+        
+testCarmichael :: Int -> IO()
+testCarmichael k = testPrimeFCarmichael primeF 0 k (take 100 carmichael) 100
+
+-- exec. 6
+testMillerRabin :: Int -> IO()
+testMillerRabin k = testPrimeFCarmichael primeMR 0 k (take 100 carmichael) 100
+
+-- Example tests
+t9  = testMillerRabin 1      -- Failed 13 / 100
+t10 = testMillerRabin 2      -- Failed 1 / 100
+t11 = testMillerRabin 3      -- Failed 0 / 100
+
+-- exec. 7
+--primeMer :: (Ord a) => Int -> Int -> [a] -> IO()
+getPrimer k = primeMer k 1
+primeMer 0 _ = print ("number of tests is zero")
+primeMer k n =
+	do
+		isPrimeMR <- primeMR k (2^n-1)
+		if isPrimeMR
+			then do
+				print (show (2^n-1))
+				primeMer k (n+1)
+		else
+			primeMer k (n+1)
