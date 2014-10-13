@@ -266,6 +266,7 @@ encryptExample m = do
         putStrLn $ "Translates to message: " ++ integerToMessage decode
       
 -- Encrypt a arbitrary long message, increasing the key size means that we can also increase the size of the partial messages
+-- Use the same key (not very safe, but easier) to encrypt parts of a message separately 
 encryptMessages :: String -> IO()
 encryptMessages m = do 
         let spl = splitEvery 10 m
@@ -301,4 +302,3 @@ integerToMessage i = map makeOrd $ list x
         list x = splitEvery 3 $ make3 x
         make3 x | (length x) `rem` 3 /= 0 = '0' : x
                 | otherwise = x
-                
