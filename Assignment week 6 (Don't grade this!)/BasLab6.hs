@@ -225,11 +225,11 @@ t14 = testMersenne 5
         Step 3: Encode a message (number in getEncodings)
         Step 4: Decode the message using the private key
         
-        This way A can give B the public key (or anyone else for that matter), which B uses to encode a message. B sends the message which only A can decode
+        This way A can give B the public key, which B uses to encode a message. B sends the message which only A can decode
 -}
 
 -- Get random keys of bit length n + 1
-getRandomPrime :: IO Intger 
+getRandomPrime :: Int -> IO Integer
 getRandomPrime n = do
                  n <- getRandomInt (2^n) (2^(n+1)-1)
                  returnNextPrime n
@@ -240,35 +240,42 @@ getRandomPrime n = do
                             then return n
                             else returnNextPrime (n+1)
           
-
+-- Get primes, public and private key, and encoded and decoded keys  with bitlength n and number k in exM k e x 
 type Key = (Integer, Integer)
           
--- Create keys using prime p and prime q
-getKeys :: Integer -> Integer -> (Key, Key)
-getKeys p q = (rsa_public p q, rsa_private p q) 
-          
--- Create the encodings from the private and public key
-getEncodings :: Integer -> Key -> Key -> (Integer, Integer)
-getEncodings k pbKey prKey = let enc = rsa_encode prKey k
-                             in (enc, rsa_decode pbKey enc)
+createKeys :: Integer -> Integer -> (Key, Key)
+createKeys p q = (rsa_public p q, rsa_private p q) 
          
 -- Example of the RSA encryption where a message of 8 characters can be encoded, longer and it will crash since integer will be to big and the translating will fail
--- To solve this, split the message in lengths of 8 and encode each separately to send longer messages 
-encryptMessage m = do 
-        putStrLn $ "message: " ++ m 
+-- To solve this, split the message in lengths of 8 and encode each separately to send longer messages (see encryptMessages)
+encryptExample :: String -> IO()
+encryptExample m = do 
+        putStrLn $ "Message as created by B: " ++ m                                     
         let i = messageToInteger m
-        putStrLn $ "message as int " ++ show i
         p <- getRandomPrime 40
         q <- getRandomPrime 40
-        putStrLn $ "primes 1 & 2: " ++ show p ++ " " ++ show q
-        let keys = getKeys p q
-        putStrLn $ "Public key: " ++ show (fst keys) 
-        putStrLn $ "Private key: " ++ show (snd keys)
-        let encodings = getEncodings i (fst keys) (snd keys)
-        let decode = snd encodings
-        putStrLn $ "Encoding: " ++ show (fst encodings) 
-        putStrLn $ "Decoding: " ++ show decode
+        putStrLn $ "Primes 1 & 2: " ++ show p ++ " " ++ show q
+        let keys = createKeys p q
+        putStrLn $ "Public key, given to B by A: " ++ show (fst keys)                    -- Given to B by A
+        putStrLn $ "Private key, only obtained by A: " ++ show (snd keys)
+        let encode =  rsa_encode (fst keys) i                           
+        let decode = rsa_decode (snd keys) encode                       
+        putStrLn $ "Encoding done by B and send encrypted message to A: " ++ show encode
+        putStrLn $ "Decoding done by A after receiving message from B: " ++ show decode
         putStrLn $ "Translates to message: " ++ integerToMessage decode
+      
+encryptMessages :: String -> IO()
+encryptMessages m = do 
+        let spl = splitEvery 8 m
+        let i = map messageToInteger spl
+        p <- getRandomPrime 40
+        q <- getRandomPrime 40
+        let keys = createKeys p q
+        let encode =  map (rsa_encode (fst keys)) i
+        print encode
+        let decode = map (rsa_decode (snd keys)) encode
+        print $ concatMap integerToMessage decode
+
         
 -- Create an integer of a message 
 messageToInteger :: String -> Integer
@@ -282,8 +289,7 @@ messageToInteger xs = read $ concat $ map evenIntlist intlist
 splitEvery :: Int -> [a] -> [[a]]
 splitEvery n x | length x > n = let s = splitAt n $ x in (fst s) : (splitEvery n (snd s))
                | otherwise = [x]
-          
--- Create a message from an integer
+              
 integerToMessage :: Integer -> String
 integerToMessage i = map makeOrd $ list x
     where 
