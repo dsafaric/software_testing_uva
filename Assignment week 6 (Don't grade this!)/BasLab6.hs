@@ -222,7 +222,7 @@ t14 = testMersenne 5
         Step 1: Get primes with the same bit length 
         Step 2: RSA encryption
             Create a public and private key with it
-        Step 3: Encode a message (number in getEncodings)
+        Step 3: Encode a message (String converted to Integer, since encoding expects an Integer)
         Step 4: Decode the message using the private key
         
         This way A can give B the public key, which B uses to encode a message. B sends the message which only A can decode
@@ -246,8 +246,9 @@ type Key = (Integer, Integer)
 createKeys :: Integer -> Integer -> (Key, Key)
 createKeys p q = (rsa_public p q, rsa_private p q) 
          
--- Example of the RSA encryption where a message of 8 characters can be encoded, longer and it will crash since integer will be to big and the translating will fail
--- To solve this, split the message in lengths of 8 and encode each separately to send longer messages (see encryptMessages)
+-- Example of the RSA encryption where a message of 8 characters can be encoded (depends on prime lenght), longer and it will crash 
+-- since integer will be to big and the translating will fail. To solve this, split the message in lengths of 8 and encode each 
+-- separately to send longer messages (see encryptMessages).
 encryptExample :: String -> IO()
 encryptExample m = do 
         putStrLn $ "Message as created by B: " ++ m                                     
@@ -256,7 +257,7 @@ encryptExample m = do
         q <- getRandomPrime 40
         putStrLn $ "Primes 1 & 2: " ++ show p ++ " " ++ show q
         let keys = createKeys p q
-        putStrLn $ "Public key, given to B by A: " ++ show (fst keys)                    -- Given to B by A
+        putStrLn $ "Public key, given to B by A: " ++ show (fst keys)                    
         putStrLn $ "Private key, only obtained by A: " ++ show (snd keys)
         let encode =  rsa_encode (fst keys) i                           
         let decode = rsa_decode (snd keys) encode                       
@@ -264,12 +265,13 @@ encryptExample m = do
         putStrLn $ "Decoding done by A after receiving message from B: " ++ show decode
         putStrLn $ "Translates to message: " ++ integerToMessage decode
       
+-- Encrypt a arbitrary long message, increasing the key size means that we can also increase the size of the partial messages
 encryptMessages :: String -> IO()
 encryptMessages m = do 
-        let spl = splitEvery 8 m
+        let spl = splitEvery 10 m
         let i = map messageToInteger spl
-        p <- getRandomPrime 40
-        q <- getRandomPrime 40
+        p <- getRandomPrime 50
+        q <- getRandomPrime 50
         let keys = createKeys p q
         let encode =  map (rsa_encode (fst keys)) i
         print encode
