@@ -6,13 +6,21 @@ import System.Random
 import Week6
 import Data.Time
 import Test.QuickCheck
-import System.IO.Unsafe
 import Control.Monad
 import Data.Bits
+import Data.Char
 
 ---- Assignment 1 ----
--- Time spent :: 45 minutes
+-- Time spent :: 1 hour each probably
 ---- We included 4 different versions, since we did this assignment separated. modExp is fastest, so you can only look at that one if you want to.
+modExp :: Integer -> Integer -> Integer -> Integer
+modExp b 0 m = 1
+modExp b e m = t * modExp ((b * b) `mod` m) (shiftR e 1) m `mod` m -- shiftR by 1 == div by 2!
+  		   where 
+  		   	t = if testBit e 0 
+  		   		then b `mod` m else 1 -- is first bit equal to 1? mod!.. nope? number is 0. return 1!
+                
+-- Another way where the input is translated to a bit list and thereafter the method of the assignment is used
 exM' :: Integer -> Integer -> Integer -> Integer
 exM' x e n = let list = (findPowerOf2 e)
              in (product $ map (\exp -> exMsub x exp n) list) `mod` n
@@ -33,15 +41,7 @@ findPowerOf2 :: Integer -> [Integer]
 findPowerOf2 n = let list = zip [0..] (binary n)
                  in map (\z -> 2^z) $ map fst $ filter (\(x,y) -> y == 1) list     
 
--- Another way of doing it:
-modExp :: Integer -> Integer -> Integer -> Integer
-modExp b 0 m = 1
-modExp b e m = t * modExp ((b * b) `mod` m) (shiftR e 1) m `mod` m -- shiftR by 1 == div by 2!
-  		   where 
-  		   	t = if testBit e 0 
-  		   		then b `mod` m else 1 -- is first bit equal to 1? mod!.. nope? number is 0. return 1!
 
--- similar like above.. more clear... divide problem to smaller ones. log << smaller/shorter
 -- x^n % m, time complexity O(log n)
 modPow :: Integer -> Integer -> Integer -> Integer
 modPow x n m
@@ -52,7 +52,7 @@ modPow x n m
 		nOdd = modPow x (n `div` 2) m
 		nEvn = ((x `mod` m) * (modPow x (n-1) m)) `mod` m    
 
--- And a third way:
+-- And a fourth way:
 exMod :: Integer -> Integer -> Integer -> Integer
 exMod _ 0 _ = 1     
 exMod x y m | even y = multM e e m 
@@ -63,6 +63,7 @@ exMod x y m | even y = multM e e m
 getRandomInt :: Integer -> Integer -> IO Integer
 getRandomInt l u = getStdRandom (randomR (l,u))
 
+-- Random values bigger than m7 would give problems to the original exM which we are using as a comparison. When exM is excluded bigger numbers can be chosen.
 randomValues :: Int -> IO [(Integer,Integer,Integer)]
 randomValues 0 = return [] 
 randomValues n = do
@@ -88,14 +89,14 @@ compareExMs = do
         print $ "exMod': " ++ show d
         print $ "exM: " ++ show e      
          
--- exM and exM' can only be compared if used in IO (otherwise it gives computing time 0.00)
+-- the new functions and exM' can only be compared if used in IO (otherwise it gives computing time 0.00)
 exM'' :: Int -> [(Integer, Integer, Integer)] -> IO()
 exM'' b list = do 
         let m = map (exMCompare b) list
-        print $ last m -- Just so the whole screen is not full
+        print $ last m -- Just so the whole screen is not full, it has to do some computation, otherwise it will return 0.00
         
            
--- Use the exM and exM' on a three tuple of values
+-- Use the exM and the new functions on a three tuple of values
 exMCompare :: Int -> (Integer,Integer,Integer) -> Integer
 exMCompare b (x,y,z) | b == 1 =  exM' x y z
                      | b == 2 = modPow x y z
@@ -113,6 +114,7 @@ runningTime f = do
 	return $ realToFrac $ diffUTCTime e s :: (IO Double)
     
 
+-- Check if each of the new functions give the same result as the old exM
 qTestProp' :: (Integer -> Integer -> Integer -> Integer) -> Integer -> Integer -> Integer -> Bool
 qTestProp' f x y m	| x == 0 || y == 0 || m == 0 	= True                   -- No valid input
                     | otherwise = f (x^2) (y^2) (m^2) == exM (x^2) (y^2) (m^2)
@@ -141,7 +143,7 @@ testFunction k (x:xs) 	= do
       	testFunction k xs
                     
 -- Shows the lowest found falsely labelled prime after 10 times doing the test and a given k (times primeF is applied)
--- When k is increasing the minimum number found as well since testing is stronger
+-- When k is increasing, the minimum number found will increase as well since testing is stronger
 lowestComposite :: Int -> IO Integer
 lowestComposite k = testComposites k 10 >>= return.minimum
 
@@ -169,8 +171,8 @@ carmichael = [ (6*k+1)*(12*k+1)*(18*k+1) |
 testPrimeFCarmichael :: (Int -> Integer -> IO Bool) -> Integer -> Int -> [Integer] -> Int -> IO () 
 testPrimeFCarmichael f n k [] a 		= print ("Tests failed: " ++ show n ++ " out of " ++ show a)
 testPrimeFCarmichael f n k (x:xs) a 	= do
-    fermatPrime <- f k x
-    if fermatPrime 
+    prime <- f k x
+    if prime
     	then do 
     		print ("Falsely labelled prime: " ++ show x)
       		testPrimeFCarmichael f (n+1) k xs a
@@ -197,7 +199,7 @@ t11 = testMillerRabin 3      -- Failed 0 / 100
 
 ---- Assignment 7 ----
 mersenne :: Int -> Int -> [Integer] -> IO ()
-mersenne _ _ [] = print ("List of primes empty")
+mersenne _ _ [] = print ("List of primes empty") -- Should of course never happen, but still, no harm done preparing
 mersenne c k (x:xs) = do
 	n <- primeMR k (2^x - 1)
 	if n 
@@ -215,4 +217,80 @@ t13 = testMersenne 2
 t14 = testMersenne 5
 
 ---- Assignment BONUS ----
+{- 
+        For RSA encryption the following steps are done:
+        Step 1: Get primes with the same bit length 
+        Step 2: RSA encryption
+            Create a public and private key with it
+        Step 3: Encode a message (number in getEncodings)
+        Step 4: Decode the message using the private key
+        
+        This way A can give B the public key (or anyone else for that matter), which B uses to encode a message. B sends the message which only A can decode
+-}
 
+-- Get random keys of bit length n + 1
+getRandomPrime :: IO Intger 
+getRandomPrime n = do
+                 n <- getRandomInt (2^n) (2^(n+1)-1)
+                 returnNextPrime n
+    where
+        returnNextPrime n = do 
+                            r <- primeMR 10 n
+                            if r
+                            then return n
+                            else returnNextPrime (n+1)
+          
+
+type Key = (Integer, Integer)
+          
+-- Create keys using prime p and prime q
+getKeys :: Integer -> Integer -> (Key, Key)
+getKeys p q = (rsa_public p q, rsa_private p q) 
+          
+-- Create the encodings from the private and public key
+getEncodings :: Integer -> Key -> Key -> (Integer, Integer)
+getEncodings k pbKey prKey = let enc = rsa_encode prKey k
+                             in (enc, rsa_decode pbKey enc)
+         
+-- Example of the RSA encryption where a message of 8 characters can be encoded, longer and it will crash since integer will be to big and the translating will fail
+-- To solve this, split the message in lengths of 8 and encode each separately to send longer messages 
+encryptMessage m = do 
+        putStrLn $ "message: " ++ m 
+        let i = messageToInteger m
+        putStrLn $ "message as int " ++ show i
+        p <- getRandomPrime 40
+        q <- getRandomPrime 40
+        putStrLn $ "primes 1 & 2: " ++ show p ++ " " ++ show q
+        let keys = getKeys p q
+        putStrLn $ "Public key: " ++ show (fst keys) 
+        putStrLn $ "Private key: " ++ show (snd keys)
+        let encodings = getEncodings i (fst keys) (snd keys)
+        let decode = snd encodings
+        putStrLn $ "Encoding: " ++ show (fst encodings) 
+        putStrLn $ "Decoding: " ++ show decode
+        putStrLn $ "Translates to message: " ++ integerToMessage decode
+        
+-- Create an integer of a message 
+messageToInteger :: String -> Integer
+messageToInteger xs = read $ concat $ map evenIntlist intlist
+    where
+        intlist = map ord xs
+        evenIntlist x | x < 100 = '0' : (show x)
+                      | x < 1000 = show x
+
+-- Split a list into pieces of each length n
+splitEvery :: Int -> [a] -> [[a]]
+splitEvery n x | length x > n = let s = splitAt n $ x in (fst s) : (splitEvery n (snd s))
+               | otherwise = [x]
+          
+-- Create a message from an integer
+integerToMessage :: Integer -> String
+integerToMessage i = map makeOrd $ list x
+    where 
+        x = show i
+        makeOrd (l:ls) | l == '0' = chr (read ls)
+                       | otherwise = chr $ read (l:ls)
+        list x = splitEvery 3 $ make3 x
+        make3 x | (length x) `rem` 3 /= 0 = '0' : x
+                | otherwise = x
+                

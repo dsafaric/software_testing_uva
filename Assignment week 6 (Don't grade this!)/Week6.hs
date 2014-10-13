@@ -5,6 +5,25 @@ where
 import Data.List
 import System.Random
 
+-- Replacement of exM
+exMReplace :: Integer -> Integer -> Integer -> Integer
+exMReplace x e n = let list = (findPowerOf2 e)
+             in (product $ map (\exp -> exMsub x exp n) list) `mod` n
+ where
+    exMsub :: Integer -> Integer -> Integer -> Integer
+    exMsub x y n = exM2 x y n 1 (mod x n)
+        where
+            exM2 x y n i r  | (i*2<=y) = exM2 x y n (i*2) (mod (r^2) n)
+                            | otherwise = r
+    binary :: Integer -> [Integer]
+    binary 0 = []
+    binary n | even n = (rem n 2) : (binary (div n 2))
+             | odd n = (rem n 2) : (binary (div (n-1) 2))
+             
+    findPowerOf2 :: Integer -> [Integer]
+    findPowerOf2 n = let list = zip [0..] (binary n)
+                     in map (\z -> 2^z) $ map fst $ filter (\(x,y) -> y == 1) list  
+
 factors_naive :: Integer -> [Integer]
 factors_naive n = factors' n 2 where 
   factors' 1 _ = []
@@ -67,7 +86,7 @@ expM ::  Integer -> Integer -> Integer -> Integer
 expM x y = rem (x^y)
 
 exM :: Integer -> Integer -> Integer -> Integer
-exM = expM -- to be replaced by a fast version
+exM = exMReplace --expM -- to be replaced by a fast version
 
 prime_test_F :: Integer -> IO Bool
 prime_test_F n = do 
@@ -144,8 +163,7 @@ rsa_public p q = let
  in 
    (e,p*q)
 
-rsa_private ::  Integer -> Integer 
-                -> (Integer,Integer)
+rsa_private ::  Integer -> Integer -> (Integer,Integer)
 rsa_private p q = let 
    n = p * q
    phi = (p-1)*(q-1)
