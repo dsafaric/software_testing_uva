@@ -43,14 +43,16 @@ findPowerOf2 n = let list = zip [0..] (binary n)
 
 
 -- x^n % m, time complexity O(log n)
+-- x^n mod m == (x^(n/2) mod m * x^(n/2) mod m) mod m. calculating x^(n/2) is a lot more faster then x^n. 
+-- and also when it's even need to calculate x^(n/2) once.
 modPow :: Integer -> Integer -> Integer -> Integer
 modPow x n m
-	| n == 0 = 1
-	| n `mod` 2 == 0 = (nOdd*nOdd) `mod` m
-	| otherwise = nEvn
-	where 
-		nOdd = modPow x (n `div` 2) m
-		nEvn = ((x `mod` m) * (modPow x (n-1) m)) `mod` m    
+  | n == 0 = 1
+  | n `mod` 2 == 0 = (nEvn*nEvn) `mod` m
+  | otherwise = nOdd
+  where 
+    nEvn = modPow x (n `div` 2) m 
+    nOdd = ((x `mod` m) * (modPow x (n-1) m)) `mod` m   
 
 -- And a fourth way:
 exMod :: Integer -> Integer -> Integer -> Integer
