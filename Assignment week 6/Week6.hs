@@ -6,7 +6,7 @@ import Data.List
 import System.Random
 import Data.Bits
 
--- Replacement of exM
+-- Replacement of exM, using modExp from lab6.hs
 exMReplace :: Integer -> Integer -> Integer -> Integer
 exMReplace b 0 m = 1
 exMReplace b e m = t * exMReplace ((b * b) `mod` m) (shiftR e 1) m `mod` m -- shiftR by 1 == div by 2!
@@ -76,7 +76,7 @@ expM ::  Integer -> Integer -> Integer -> Integer
 expM x y = rem (x^y)
 
 exM :: Integer -> Integer -> Integer -> Integer
-exM = exMReplace --expM -- to be replaced by a fast version
+exM = exMReplace 
 
 prime_test_F :: Integer -> IO Bool
 prime_test_F n = do 

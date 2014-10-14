@@ -12,7 +12,7 @@ import Data.Ord
 
 ---- Assignment 1 ----
 -- Time spent :: 1 hour each probably
--- We included 4 different versions, since we did this assignment separated. modExp is (mostly) fastest, so you can only look at that one if you want to.
+-- We included 4 different versions, since we did this assignment separated. modExp is (mostly, but it is very close) fastest, so you can only look at that one if you want to.
 modExp :: Integer -> Integer -> Integer -> Integer
 modExp b 0 m = 1
 modExp b e m = t * modExp ((b * b) `mod` m) (shiftR e 1) m `mod` m -- shiftR by 1 == div by 2!
@@ -80,7 +80,7 @@ randomValues n = do
 -- Compares all the exM functions based on performance and print them in order of calculation time
 compareExMs :: IO()    
 compareExMs = do	
-        list <- randomValues 100000
+        list <- randomValues 500000
         a <- runningTime $ exM'' 1 list
         b <- runningTime $ exM'' 2 list
         c <- runningTime $ exM'' 3 list
@@ -260,13 +260,13 @@ getRandomPrime n = do
                             then return n
                             else returnNextPrime (n+1)
           
--- Get primes, public and private key, and encoded and decoded keys  with bitlength n and number k in exM k e x 
+-- Get primes, public and private key, and encoded and decoded keys  with bit length n and number k in exM k e x 
 type Key = (Integer, Integer)
           
 createKeys :: Integer -> Integer -> (Key, Key)
 createKeys p q = (rsa_public p q, rsa_private p q) 
          
--- Example of the RSA encryption where a message of 8 characters can be encoded (depends on prime lenght), longer and it will crash 
+-- Example of the RSA encryption where a message of 8 characters can be encoded (depends on prime length), longer and it will crash 
 -- since integer will be to big and the translating will fail. To solve this, split the message in lengths of 8 and encode each 
 -- separately to send longer messages (see encryptMessages).
 encryptExample :: String -> IO()
