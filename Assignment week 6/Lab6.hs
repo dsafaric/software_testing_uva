@@ -43,6 +43,8 @@ findPowerOf2 n = let list = zip [0..] (binary n)
 
 
 -- x^n % m, time complexity O(log n)
+-- x^n mod m == (x^(n/2) mod m * x^(n/2) mod m) mod m. calculating x^(n/2) is a lot more faster then x^n. 
+-- and also when it's even need to calculate x^(n/2) once.
 modPow :: Integer -> Integer -> Integer -> Integer
 modPow x n m
 	| n == 0 = 1
@@ -134,18 +136,36 @@ qTestProp4 = quickCheckWith stdArgs {maxSuccess = 5000} (qTestProp' exMod)
 -- Since there is no fast way of finding all primes, there is none for finding al composites
 -- Just use the same mechanism
 composites :: [Integer]
-composites = filter (\n -> isPrime n == False) [1..]
+composites = filter (\n -> isPrime n == False) [4..]
 
 ---- Assignment 4 ----
 -- Time spent: 30 minutes
-testFunction :: Int -> [Integer] -> IO Integer
-testFunction k (x:xs) 	= do
+-- General function which can be used to test primeF and primeMR
+testPrimeFunction :: (Int -> Integer -> IO Bool) -> Integer -> Int -> [Integer] -> Int -> IO () 
+testPrimeFunction f n k [] a 		= print ("Tests failed: " ++ show n ++ " out of " ++ show a)
+testPrimeFunction f n k (x:xs) a 	= do
+    prime <- f k x
+    if prime
+    	then do 
+    		print ("Falsely labelled prime: " ++ show x)
+      		testPrimeFunction f (n+1) k xs a
+      else 
+      	testPrimeFunction f n k xs a
+        
+-- Test prime F
+testPrimeF :: Int -> IO()
+testPrimeF k = testPrimeFunction primeF 0 k (take 1000 composites) 1000
+        
+        
+-- Check the first false prime 
+testFalsePrime :: Int -> [Integer] -> IO Integer
+testFalsePrime k (x:xs) 	= do
     fermatPrime <- primeF k x
     if fermatPrime 
     	then do 
     		return x
       else 
-      	testFunction k xs
+      	testFalsePrime k xs
                     
 -- Shows the lowest found falsely labelled prime after 10 times doing the test and a given k (times primeF is applied)
 -- When k is increasing, the minimum number found will increase as well since testing is stronger
@@ -155,7 +175,7 @@ lowestComposite k = testComposites k 10 >>= return.minimum
 testComposites :: Int -> Int -> IO [Integer]
 testComposites _ 0 = return []
 testComposites k n = do
-        x <- testFunction k composites 
+        x <- testFalsePrime k composites 
         xs <- testComposites k (n-1)
         return (x:xs)
 
@@ -174,19 +194,9 @@ carmichael = [ (6*k+1)*(12*k+1)*(18*k+1) |
       isPrime (12*k+1), 
       isPrime (18*k+1) ]
 
-testPrimeFCarmichael :: (Int -> Integer -> IO Bool) -> Integer -> Int -> [Integer] -> Int -> IO () 
-testPrimeFCarmichael f n k [] a 		= print ("Tests failed: " ++ show n ++ " out of " ++ show a)
-testPrimeFCarmichael f n k (x:xs) a 	= do
-    prime <- f k x
-    if prime
-    	then do 
-    		print ("Falsely labelled prime: " ++ show x)
-      		testPrimeFCarmichael f (n+1) k xs a
-      else 
-      	testPrimeFCarmichael f n k xs a
         
 testCarmichael :: Int -> IO()
-testCarmichael k = testPrimeFCarmichael primeF 0 k (take 100 carmichael) 100
+testCarmichael k = testPrimeFunction primeF 0 k (take 100 carmichael) 100
 
 -- Example tests
 t5 = testCarmichael 1       -- Failed 100/100
@@ -197,7 +207,7 @@ t8 = testCarmichael 100     -- Failed 93 / 100
 ---- Assignment 6 ----
 -- Time spent: 15 minutes
 testMillerRabin :: Int -> IO()
-testMillerRabin k = testPrimeFCarmichael primeMR 0 k (take 100 carmichael) 100
+testMillerRabin k = testPrimeFunction primeMR 0 k (take 1000 carmichael) 1000
 
 -- Example tests
 t9  = testMillerRabin 1      -- Failed 13 / 100
