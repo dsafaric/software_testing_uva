@@ -1,14 +1,21 @@
-module BasLab6
+-- MergedLab6.hs
+
+module Lab6ST 
 
 where
-import Data.List
-import System.Random
+
+import Lab6
 import Week6
 import Data.Time
-import Test.QuickCheck
-import Control.Monad
+import Data.List
 import Data.Bits
 import Data.Char
+import Test.Hspec
+import System.Random
+import Control.Monad
+import Test.QuickCheck
+import System.IO.Unsafe
+
 
 ---- Assignment 1 ----
 -- Time spent :: 1 hour each probably
@@ -128,95 +135,105 @@ qTestProp3 = quickCheckWith stdArgs {maxSuccess = 5000} (qTestProp' modPow)
 qTestProp4 = quickCheckWith stdArgs {maxSuccess = 5000} (qTestProp' exMod) 
 
 
----- Assignment 3 ----
--- Since there is no fast way of finding all primes, there is none for finding al composites
--- Just use the same mechanism
+-- Exercise 3
+-- Time spent: 10 min
+
 composites :: [Integer]
 composites = filter (\n -> isPrime n == False) [1..]
 
----- Assignment 4 ----
-testFunction :: Int -> [Integer] -> IO Integer
-testFunction k (x:xs) 	= do
-    fermatPrime <- primeF k x
-    if fermatPrime 
-    	then do 
-    		return x
+
+-- Exercise 4
+
+primeF :: Int -> Integer -> IO Bool
+primeF _ 2 = return True
+primeF 0 _ = return True
+primeF k n = do
+   a <- randomRIO (1, n-2) :: IO Integer
+   if (exM a (n-1) n /= 1) 	-- function modified and exM replaced with exMod
+      then return False 
+      else primeF (k-1) n
+
+primeMR :: Int -> Integer -> IO Bool
+primeMR _ 2 = return True
+primeMR 0 _ = return True
+primeMR k n = let 
+   (r,s) = decomp (n-1) 
+   f = \ x -> takeWhile (/= 1) 
+       (map (\ j -> exMod x (2^j*s) n)  [0..r]) -- function modified and exM replaced with exMod
+  in 
+   do 
+    a <- randomRIO (1, n-1) :: IO Integer
+    if exMod a (n-1) n /= 1 
+      then return False 
       else 
-      	testFunction k xs
-                    
--- Shows the lowest found falsely labelled prime after 10 times doing the test and a given k (times primeF is applied)
--- When k is increasing, the minimum number found will increase as well since testing is stronger
-lowestComposite :: Int -> IO Integer
-lowestComposite k = testComposites k 10 >>= return.minimum
+        if exMod a s n /= 1 && last (f a) /= (n-1) 
+          then return False
+          else primeMR (k-1) n
 
-testComposites :: Int -> Int -> IO [Integer]
-testComposites _ 0 = return []
-testComposites k n = do
-        x <- testFunction k composites 
-        xs <- testComposites k (n-1)
-        return (x:xs)
-
--- Example tests
-t1 = lowestComposite 1      -- 4
-t2 = lowestComposite 4      -- 15
-t3 = lowestComposite 7      -- 1105
-t4 = lowestComposite 10     -- 2821
-
----- Assignment 5 ----
-carmichael :: [Integer]
-carmichael = [ (6*k+1)*(12*k+1)*(18*k+1) | 
-      k <- [2..], 
-      isPrime (6*k+1), 
-      isPrime (12*k+1), 
-      isPrime (18*k+1) ]
-
-testPrimeFCarmichael :: (Int -> Integer -> IO Bool) -> Integer -> Int -> [Integer] -> Int -> IO () 
-testPrimeFCarmichael f n k [] a 		= print ("Tests failed: " ++ show n ++ " out of " ++ show a)
-testPrimeFCarmichael f n k (x:xs) a 	= do
-    prime <- f k x
-    if prime
+testPrimarity :: Integer -> (Int -> Integer -> IO Bool) -> Int -> [Integer] -> IO () 
+testPrimarity n f k [] 		= print ("Test done -> Number of fails: " ++ show n)
+testPrimarity n f k (x:xs) 	= do
+    p <- f k x
+    if p 
     	then do 
-    		print ("Falsely labelled prime: " ++ show x)
-      		testPrimeFCarmichael f (n+1) k xs a
+    		print ("Failed composite: " ++ show x)
+      		testPrimarity (n+1) f k xs 
       else 
-      	testPrimeFCarmichael f n k xs a
-        
-testCarmichael :: Int -> IO()
-testCarmichael k = testPrimeFCarmichael primeF 0 k (take 100 carmichael) 100
+      	testPrimarity n f k xs
+      		
 
--- Example tests
-t5 = testCarmichael 1       -- Failed 100/100
-t6 = testCarmichael 10      -- Failed 100/100
-t7 = testCarmichael 30      -- Failed 98 / 100
-t8 = testCarmichael 100     -- Failed 93 / 100   
+testPropF :: IO ()
+testPropF = do
+	k <- getStdRandom (randomR (1,3))
+	n <- getStdRandom (randomR (20,1000))
+	testPrimarity 0 primeF k $ take n composites
 
----- Assignment 6 ----
-testMillerRabin :: Int -> IO()
-testMillerRabin k = testPrimeFCarmichael primeMR 0 k (take 100 carmichael) 100
 
--- Example tests
-t9  = testMillerRabin 1      -- Failed 13 / 100
-t10 = testMillerRabin 2      -- Failed 1 / 100
-t11 = testMillerRabin 3      -- Failed 0 / 100
+-- Exercise 5
+-- time spent: 10 min  
 
----- Assignment 7 ----
-mersenne :: Int -> Int -> [Integer] -> IO ()
-mersenne _ _ [] = print ("List of primes empty") -- Should of course never happen, but still, no harm done preparing
-mersenne c k (x:xs) = do
+randInt :: Int -> Int -> IO Int
+randInt = \x -> \ y -> getStdRandom (randomR (x,y)) 
+
+testPropC :: IO ()
+testPropC = do
+	k <- randInt 1 3
+	n <- randInt 1 10
+	testPrimarity 0 primeF k $ take n carmichael 
+
+-- Exercise 6
+-- time spent: 30 min
+
+testPropMR :: IO ()
+testPropMR = do
+	--k <- randInt 1 3
+	--n <- randInt 20 30
+	testPrimarity 0 primeMR 1 $ take 10 carmichael
+
+-- getting a strange error regarding a bus error:
+	-- either a pointer to deallocated 
+	-- or overflow of the buffer
+
+-- Exercise 7
+-- time spent: 45 min 
+
+mersenne' :: Int -> Int -> [Integer] -> IO ()
+mersenne' _ _ [] = print ("List of primes empty")
+mersenne' c k (x:xs) = do
 	n <- primeMR k (2^x - 1)
 	if n 
 		then do
 			print ("Marsenne's " ++ show c ++ " number: " ++ show (2^x - 1))
-			mersenne (c+1) k xs
-		else mersenne c k xs
+			mersenne' (c+1) k xs
+		else mersenne' c k xs
 
-testMersenne :: Int -> IO ()
-testMersenne k = mersenne 0 k $ take 1000 primes
+testPropMM :: IO ()
+testPropMM = do
+	k <- randInt 1 3
+	n <- randInt 10 1000
+	mersenne' 0 k $ take n primes
 
--- Example tests
-t12 = testMersenne 1
-t13 = testMersenne 2
-t14 = testMersenne 5
+-- the largest Mersenne's number discovered was the 19th: 2^4423 - 1
 
 ---- Assignment BONUS ----
 {- 
@@ -304,3 +321,7 @@ integerToMessage i = map makeOrd $ list x
         list x = splitEvery 3 $ make3 x
         make3 x | (length x) `rem` 3 /= 0 = '0' : x
                 | otherwise = x
+
+
+
+
